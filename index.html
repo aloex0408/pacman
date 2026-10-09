@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Pac-Man Rush — Juego de Pac-Man</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="pacman.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Pac-Man Rush">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>PAC-MAN <b>RUSH</b></span>
+      </a>
+      <div class="topbar-actions">
+        <span class="status-dot"></span>
+        <span>JUEGO ACTIVO</span>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">CORRE, SALTA Y VELOCIDA</p>
+        <h1>mata a los<br><span>jefes</span></h1>
+        <p class="intro">Salta y agáchate para esquivar. Recoge la aleta amarilla durante la carrera para que lance 5 monedas; agacharte no genera monedas. Compra vida en la tienda del tiburón.</p>
+        <div class="controls-hint">
+          <span><kbd>W</kbd> / <kbd>SPACE</kbd> Salta</span>
+          <span><kbd>S</kbd> / <kbd>↓</kbd> Agáchate</span>
+          <span><kbd>A</kbd> / <kbd>D</kbd> Muévete durante el combate o acércate a la tienda</span>
+          <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Esquiva en el Gulag</span>
+          <span><kbd>E</kbd> Abre la tienda cuando estés cerca</span>
+        </div>
+      </div>
+
+      <div class="game-card">
+        <div class="hud" aria-label="Puntuación del juego">
+          <div class="hud-stat">
+            <span class="hud-label">PUNTUACIÓN</span>
+            <strong id="score">00000</strong>
+          </div>
+
+          <div class="hud-meta">
+            <div class="hud-metric">
+              <span class="hud-label">VIDAS</span>
+              <strong id="lives">❤❤❤</strong>
+            </div>
+            <div class="hud-metric hud-metric--power">
+              <span class="hud-label">PODER</span>
+              <strong id="powerStatus">SIN PODER</strong>
+            </div>
+            <div class="hud-metric hud-metric--coins">
+              <span class="hud-label">MONEDAS</span>
+              <strong id="coinCount">0</strong>
+            </div>
+          </div>
+
+          <div class="hud-stat hud-stat--right">
+            <span class="hud-label">MEJOR</span>
+            <strong id="best">00000</strong>
+          </div>
+          <div class="multiplier" id="multiplier">
+            <span>RACHA</span>
+            <strong id="multiplierValue">×1</strong>
+          </div>
+        </div>
+
+        <div class="action-prompt" id="actionPrompt">SALTA LOS FANTASMAS · AGÁCHATE PARA LAS NAVES</div>
+
+        <div class="game-stage" id="gameStage">
+          <canvas id="gameCanvas" width="960" height="450" aria-label="Juego de Pac-Man"></canvas>
+          <div class="start-panel" id="startPanel">
+            <span class="panel-icon">▶</span>
+            <h2>¿Listo para comer?</h2>
+            <p>Al perder tus 3 vidas caerás al Gulag. Su dificultad y sus ataques aumentan según avanzas; en tu décima entrada se activa el juicio final y, si lo superas, lucharás contra la calavera en la carrera. Si sobrevives al Gulag, vuelves con una sola vida especial: perderla acaba la partida, salvo que hayas recogido una vida normal. La vida de la tienda cuesta 16 monedas.</p>
+            <div id="authForm">
+              <label class="player-name-label" for="playerName">USUARIO (10–15 CARACTERES)</label>
+              <input id="playerName" class="player-name-input" name="username" type="text" minlength="10" maxlength="15" pattern="[A-Za-z0-9_]{10,15}" autocomplete="username" aria-describedby="playerNameHelp authStatus" required>
+              <span id="playerNameHelp" class="player-name-help">Solo letras, números y guion bajo.</span>
+              <label class="player-name-label" for="playerPassword">CONTRASEÑA</label>
+              <input id="playerPassword" class="player-name-input" name="password" type="password" minlength="8" maxlength="72" autocomplete="current-password" aria-describedby="passwordHelp authStatus" required>
+              <span id="passwordHelp" class="player-name-help">Usa al menos 8 caracteres.</span>
+              <p id="authStatus" class="auth-status" aria-live="polite"></p>
+              <div class="auth-actions">
+                <button id="loginButton" type="button">INICIAR SESIÓN</button>
+                <button id="registerButton" type="button">CREAR CUENTA</button>
+              </div>
+            </div>
+            <div id="authenticatedPanel" hidden>
+              <p>Sesión iniciada como <strong id="authenticatedUsername"></strong>.</p>
+              <button id="startButton" type="button">INICIAR JUEGO <span>→</span></button>
+              <button id="logoutButton" class="auth-secondary-button" type="button">CERRAR SESIÓN</button>
+            </div>
+          </div>
+          <div class="game-over-panel" id="gameOverPanel" hidden>
+            <span class="panel-icon">!</span>
+            <h2>¡Fin de la carrera!</h2>
+            <p>Tu puntuación: <strong id="finalScore">0</strong></p>
+            <p class="restart-hint">Pulsa <kbd>F</kbd> para comenzar otra vez</p>
+            <button id="restartButton" type="button">JUGAR DE NUEVO <span>↻</span></button>
+          </div>
+          <div class="gulag-hud" id="gulagHud" role="timer" aria-live="off" hidden>
+            <strong id="gulagTitle">EL GULAG</strong>
+            <span id="gulagTimer">ESQUIVA PARA VOLVER</span>
+            <p>MUÉVETE CON W A S D O LAS FLECHAS</p>
+          </div>
+          <section class="shark-shop" id="sharkShop" aria-label="Tienda del tiburón" hidden>
+            <div class="shop-heading">
+              <div>
+                <span class="shop-eyebrow">VISITA ESPECIAL</span>
+                <h2>¡La tienda del tiburón!</h2>
+              </div>
+              <strong class="shop-wallet">🪙 <span id="shopCoinCount">0</span></strong>
+            </div>
+            <p class="shop-copy">Compra una mejora. Tus monedas y mejoras duran hasta que reinicies la partida.</p>
+            <div class="shop-items">
+              <button class="shop-item" type="button" data-shop-item="score">
+                <strong>Racha x2</strong>
+                <span class="shop-item-description">Duplica los puntos que ganas.</span>
+                <span class="shop-item-price"></span>
+              </button>
+              <button class="shop-item" type="button" data-shop-item="boss-speed">
+                <strong>Botas relámpago</strong>
+                <span class="shop-item-description">Muévete más rápido en los jefes.</span>
+                <span class="shop-item-price"></span>
+              </button>
+              <button class="shop-item" type="button" data-shop-item="weapon">
+                <strong>Rayo sónico</strong>
+                <span class="shop-item-description">Cada disparo hace más daño.</span>
+                <span class="shop-item-price"></span>
+              </button>
+              <button class="shop-item" type="button" data-shop-item="life">
+                <strong>Vida extra</strong>
+                <span class="shop-item-description">Recupera 1 vida (máximo 3).</span>
+                <span class="shop-item-price"></span>
+              </button>
+            </div>
+            <div class="shop-footer">
+              <span id="shopMessage" aria-live="polite">Acércate al tiburón para comprar.</span>
+              <button id="shopContinueButton" type="button">SEGUIR JUGANDO</button>
+            </div>
+          </section>
+          <div class="milestone-toast" id="milestoneToast" aria-live="polite">
+            <span id="milestoneLabel">RACHA DE</span>
+            <strong id="milestoneValue">×2</strong>
+          </div>
+
+          <div class="boss-panel" id="bossPanel" hidden>
+            <span id="bossName">ALIENÍGENA</span>
+            <strong id="bossStatus">SALUD: 8</strong>
+            <span id="bossAttackStatus">ATAQUE EN: 4s</span>
+            <div class="boss-ammo" id="ammoCount">BALAS: 0</div>
+            <p class="boss-controls"><kbd>P</kbd> DISPARAR · RECOGE BALAS AL PASAR · AGÁCHATE PARA ESQUIVAR</p>
+          </div>
+        </div>
+
+        <div class="mobile-controls" aria-label="Controles del juego">
+          <button id="moveLeftButton" type="button" aria-label="Mover a la izquierda" hidden>←<span>IZQUIERDA</span></button>
+          <button id="jumpButton" type="button" aria-label="Saltar">↑<span>SALTAR</span></button>
+          <button id="duckButton" type="button" aria-label="Agacharse">↓<span>AGÁCHATE</span></button>
+          <button id="moveRightButton" type="button" aria-label="Mover a la derecha" hidden>→<span>DERECHA</span></button>
+        </div>
+        <section class="leaderboard" aria-labelledby="leaderboardTitle">
+          <div class="leaderboard-heading">
+            <div>
+              <span class="shop-eyebrow">RÉCORDS DE LA COMUNIDAD</span>
+              <h2 id="leaderboardTitle">Top global</h2>
+            </div>
+            <button id="refreshLeaderboardButton" type="button">ACTUALIZAR</button>
+          </div>
+          <p id="leaderboardStatus" class="leaderboard-status" aria-live="polite">Conectando con la clasificación...</p>
+          <ol id="leaderboardList" class="leaderboard-list" aria-label="Mejores puntuaciones globales"></ol>
+        </section>
+      </div>
+    </section>
+
+    <footer>
+      <p>JUEGA CON <span>SPACE</span> O TOCA LA PANTALLA</p>
+      <p class="footer-rule">NUNCA DEJES DE COMER</p>
+    </footer>
+  </main>
+
+  <script src="pacman.js"></script>
+</body>
+</html>
