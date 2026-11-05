@@ -310,10 +310,6 @@ kbd {
   color: var(--lime);
 }
 
-.hud-metric--coins.coin-collected {
-  animation: coin-collected-pop .42s cubic-bezier(.2, 1.5, .45, 1);
-}
-
 .hud-stat--right {
   text-align: right;
 }
@@ -785,14 +781,6 @@ kbd {
   to {
     border-color: rgba(70, 215, 255, .95);
     box-shadow: 0 0 16px rgba(70, 215, 255, .72);
-  }
-}
-
-@keyframes coin-collected-pop {
-  45% {
-    transform: scale(1.16);
-    border-color: var(--lime);
-    box-shadow: 0 0 18px rgba(200, 255, 61, .7);
   }
 }
 

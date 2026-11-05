@@ -1110,22 +1110,6 @@
     }
   }
 
-  function launchCoins(x, y) {
-    const horizontalSpeeds = [-120, -60, 0, 60, 120];
-    for (const [index, vx] of horizontalSpeeds.entries()) {
-      particles.push({
-        x,
-        y,
-        vx,
-        vy: index % 2 === 0 ? -300 : -345,
-        life: 1.1,
-        size: 8,
-        color: colors.yellow,
-        type: "coin"
-      });
-    }
-  }
-
   function spawnObstacle() {
     const type = Math.random() < .65 ? "ghost" : "ship";
     const variant = ghostVariants[Math.floor(Math.random() * ghostVariants.length)];
@@ -1729,10 +1713,6 @@
       if (!fin.collected && collides(pacmanBox, finBox)) {
         fin.collected = true;
         coins += 5;
-        launchCoins(fin.x + fin.width / 2, fin.y + fin.height / 2);
-        coinCountEl.parentElement.classList.remove("coin-collected");
-        void coinCountEl.parentElement.offsetWidth;
-        coinCountEl.parentElement.classList.add("coin-collected");
         updateHud();
         milestoneLabel.textContent = "ALETA ATRAPADA";
         milestoneValue.textContent = "+5 MONEDAS";
@@ -3143,29 +3123,11 @@
 
   function drawParticles() {
     for (const particle of particles) {
-      ctx.globalAlpha = Math.min(1, particle.life / (particle.type === "coin" ? 1.1 : .7));
-      if (particle.type === "coin") {
-        ctx.save();
-        ctx.translate(particle.x, particle.y);
-        ctx.scale(Math.max(.25, Math.abs(Math.cos(performance.now() / 100 + particle.x))), 1);
-        ctx.fillStyle = "#ffd43b";
-        ctx.strokeStyle = "#fff2a6";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "#b87912";
-        ctx.beginPath();
-        ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      } else {
-        ctx.fillStyle = particle.color;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.globalAlpha = Math.min(1, particle.life / .7);
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
