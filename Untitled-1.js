@@ -2085,9 +2085,9 @@
     const type = boss.type;
     const design = bossTypes.indexOf(type);
     const t = boss.time;
-    const bob = Math.sin(t * 2.7) * 7;
-    const pulse = 1 + Math.sin(t * 3.2) * .035;
-    const swing = Math.sin(t * 2.1) * .16;
+    const bob = Math.sin(t * 2.7) * 12;
+    const pulse = 1 + Math.sin(t * 3.2) * .06;
+    const swing = Math.sin(t * 2.1) * .22;
 
     ctx.save();
     ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2 + bob);
@@ -2320,9 +2320,9 @@
   }
 
   function drawSkullBoss() {
-    const pulse = 1 + Math.sin(boss.time * 4) * .025;
+    const pulse = 1 + Math.sin(boss.time * 4) * .055;
     ctx.save();
-    ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2 + Math.sin(boss.time * 2.6) * 7);
+    ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2 + Math.sin(boss.time * 2.6) * 12);
     ctx.scale(1.7 * pulse, 1.7 * pulse);
     if (boss.shake > 0) {
       ctx.translate((Math.random() - .5) * 9 * boss.shake, (Math.random() - .5) * 7 * boss.shake);
@@ -2364,7 +2364,7 @@
     ctx.lineTo(11, 16);
     ctx.closePath();
     ctx.fill();
-    const jawDrop = Math.sin(boss.time * 5) * 3;
+    const jawDrop = Math.sin(boss.time * 5) * 5;
     ctx.strokeStyle = "#f2e2d1";
     ctx.lineWidth = 4;
     ctx.beginPath();
