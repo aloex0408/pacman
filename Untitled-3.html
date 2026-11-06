@@ -18,7 +18,26 @@
         <span>PAC-MAN <b>RUSH</b></span>
       </a>
       <div class="topbar-actions">
-        <button class="audio-toggle" id="audioToggleButton" type="button" aria-label="Audio activado" aria-pressed="true">AUDIO ACTIVADO</button>
+        <details class="settings-menu" id="settingsMenu">
+          <summary class="settings-button">AJUSTES</summary>
+          <section class="settings-panel" aria-labelledby="settingsTitle">
+            <h2 id="settingsTitle">Ajustes del juego</h2>
+            <label class="setting-row" for="musicToggle">
+              <span><strong>Música</strong><small>Melodías de carrera, jefes y Gulag</small></span>
+              <input id="musicToggle" type="checkbox" checked>
+            </label>
+            <label class="setting-row" for="jumpSoundToggle">
+              <span><strong>Sonido del salto</strong><small>Efecto de sonido al saltar</small></span>
+              <input id="jumpSoundToggle" type="checkbox" checked>
+            </label>
+            <label class="setting-row" for="reducedAnimationsToggle">
+              <span><strong>Reducir animaciones</strong><small>Enemigos estáticos y menos efectos visuales, sin cambiar el juego</small></span>
+              <input id="reducedAnimationsToggle" type="checkbox">
+            </label>
+            <p class="settings-status" id="settingsStatus" aria-live="polite">Los ajustes se guardan en este dispositivo.</p>
+            <button class="settings-retry" id="retryAudioButton" type="button" hidden>REINTENTAR AUDIO</button>
+          </section>
+        </details>
         <span class="status-dot"></span>
         <span>JUEGO ACTIVO</span>
       </div>

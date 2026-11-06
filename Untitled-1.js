@@ -1131,6 +1131,7 @@
   }
 
   function createBurst(x, y, color, count = 8) {
+    if (window.pacmanSettings.reducedAnimations) return;
     for (let i = 0; i < count; i += 1) {
       particles.push({
         x,
@@ -1924,7 +1925,9 @@
     ctx.fillStyle = gulagBackdropGradient;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    const pulse = .75 + Math.sin(performance.now() / 180) * .12;
+    const pulse = window.pacmanSettings.reducedAnimations
+      ? .75
+      : .75 + Math.sin(performance.now() / 180) * .12;
     ctx.save();
     ctx.globalAlpha = .4;
     ctx.shadowColor = "#ff153c";
@@ -2008,7 +2011,9 @@
     for (const beam of gulagBeams) {
       ctx.save();
       ctx.globalAlpha = beam.warning > 0
-        ? .35 + Math.sin(performance.now() / 55) * .25
+        ? window.pacmanSettings.reducedAnimations
+          ? .6
+          : .35 + Math.sin(performance.now() / 55) * .25
         : .9;
       ctx.fillStyle = beam.warning > 0 ? "#ffd8e0" : "#ff173d";
       ctx.shadowColor = "#ff173d";
@@ -2161,7 +2166,7 @@
     }
     const type = boss.type;
     const design = bossTypes.indexOf(type);
-    const t = boss.time;
+    const t = window.pacmanSettings.reducedAnimations ? 0 : boss.time;
     const bob = Math.sin(t * 2.7) * 12;
     const pulse = 1 + Math.sin(t * 3.2) * .06;
     const swing = Math.sin(t * 2.1) * .22;
@@ -2170,10 +2175,14 @@
     ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2 + bob);
     ctx.rotate(Math.sin(t * 1.5) * .045);
     ctx.scale(pulse * 1.8, pulse * 1.8);
-    if (boss.shake > 0) ctx.translate((Math.random() - .5) * 8 * boss.shake, (Math.random() - .5) * 6 * boss.shake);
+    if (!window.pacmanSettings.reducedAnimations && boss.shake > 0) {
+      ctx.translate((Math.random() - .5) * 8 * boss.shake, (Math.random() - .5) * 6 * boss.shake);
+    }
 
     ctx.shadowColor = boss.anger > .2 ? colors.coral : type.primary;
-    ctx.shadowBlur = boss.anger > .2 ? 34 : 24;
+    ctx.shadowBlur = window.pacmanSettings.reducedAnimations
+      ? 0
+      : boss.anger > .2 ? 34 : 24;
 
     ctx.save();
     ctx.strokeStyle = type.secondary;
@@ -2366,7 +2375,7 @@
     ctx.fill();
 
     ctx.shadowColor = type.accent;
-    ctx.shadowBlur = 16;
+    ctx.shadowBlur = window.pacmanSettings.reducedAnimations ? 0 : 16;
     ctx.fillStyle = type.accent;
     ctx.beginPath();
     if (design === 8) {
@@ -2397,15 +2406,18 @@
   }
 
   function drawSkullBoss() {
-    const pulse = 1 + Math.sin(boss.time * 4) * .055;
+    const t = window.pacmanSettings.reducedAnimations ? 0 : boss.time;
+    const pulse = 1 + Math.sin(t * 4) * .055;
     ctx.save();
-    ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2 + Math.sin(boss.time * 2.6) * 12);
+    ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2 + Math.sin(t * 2.6) * 12);
     ctx.scale(1.7 * pulse, 1.7 * pulse);
-    if (boss.shake > 0) {
+    if (!window.pacmanSettings.reducedAnimations && boss.shake > 0) {
       ctx.translate((Math.random() - .5) * 9 * boss.shake, (Math.random() - .5) * 7 * boss.shake);
     }
     ctx.shadowColor = skullBossType.accent;
-    ctx.shadowBlur = boss.anger > .2 ? 42 : 28;
+    ctx.shadowBlur = window.pacmanSettings.reducedAnimations
+      ? 0
+      : boss.anger > .2 ? 42 : 28;
     ctx.fillStyle = skullBossType.secondary;
     ctx.strokeStyle = "#f2e2d1";
     ctx.lineWidth = 5;
@@ -2426,7 +2438,7 @@
     ctx.ellipse(26, -23, 19, 25, .15, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowColor = "#ff173d";
-    ctx.shadowBlur = 25;
+    ctx.shadowBlur = window.pacmanSettings.reducedAnimations ? 0 : 25;
     ctx.fillStyle = "#ff244b";
     ctx.beginPath();
     ctx.ellipse(-25, -24, 7, 16, -.15, 0, Math.PI * 2);
@@ -2441,7 +2453,7 @@
     ctx.lineTo(11, 16);
     ctx.closePath();
     ctx.fill();
-    const jawDrop = Math.sin(boss.time * 5) * 5;
+    const jawDrop = Math.sin(t * 5) * 5;
     ctx.strokeStyle = "#f2e2d1";
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -2793,7 +2805,7 @@
     const { width, height, variant } = obstacle;
     const color = variant?.color || colors.coral;
     const glow = variant?.glow || "#ff8b7e";
-    const activeMotion = state === "running";
+    const activeMotion = state === "running" && !window.pacmanSettings.reducedAnimations;
     const bob = activeMotion ? Math.sin(performance.now() / 125 + obstacle.x * .035) * 2 : 0;
     const sway = activeMotion ? Math.sin(performance.now() / 230 + obstacle.x * .02) * .035 : 0;
     const gradientKey = `${glow}|${color}|${width}|${height}`;
@@ -2813,7 +2825,7 @@
     ctx.scale(1 + sway * .35, 1 - Math.abs(sway) * .25);
     ctx.translate(-width / 2, -height / 2);
     ctx.shadowColor = color;
-    ctx.shadowBlur = 16;
+    ctx.shadowBlur = window.pacmanSettings.reducedAnimations ? 0 : 16;
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.moveTo(width * .08, height * .82);
@@ -3031,7 +3043,9 @@
         ctx.beginPath();
         if (hazardStyle === "skullBeam") {
           if (obstacle.telegraph > 0) {
-            ctx.globalAlpha = .4 + Math.sin(performance.now() / 50) * .2;
+            ctx.globalAlpha = window.pacmanSettings.reducedAnimations
+              ? .6
+              : .4 + Math.sin(performance.now() / 50) * .2;
             ctx.fillStyle = "#fff1f4";
             ctx.fillRect(obstacle.width * .42, 0, obstacle.width * .16, obstacle.height);
             ctx.strokeRect(1, 1, obstacle.width - 2, obstacle.height - 2);
@@ -3199,6 +3213,10 @@
   }
 
   function drawParticles() {
+    if (window.pacmanSettings.reducedAnimations) {
+      particles = [];
+      return;
+    }
     for (const particle of particles) {
       ctx.globalAlpha = Math.min(1, particle.life / .7);
       ctx.fillStyle = particle.color;

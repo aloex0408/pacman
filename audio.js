@@ -19,28 +19,26 @@
   const jumpAudio = new Audio("dragon-studio-cartoon-jump-463196 (1) - copia.mp3");
   jumpAudio.preload = "auto";
   jumpAudio.volume = .85;
-  const toggleButton = document.getElementById("audioToggleButton");
+  const musicToggle = document.getElementById("musicToggle");
+  const jumpSoundToggle = document.getElementById("jumpSoundToggle");
+  const reducedAnimationsToggle = document.getElementById("reducedAnimationsToggle");
+  const settingsStatus = document.getElementById("settingsStatus");
+  const retryAudioButton = document.getElementById("retryAudioButton");
+  let musicEnabled = localStorage.getItem("pacman-rush-music-enabled") !== "false";
+  let jumpSoundEnabled = localStorage.getItem("pacman-rush-jump-enabled") !== "false";
+  let reducedAnimations = localStorage.getItem("pacman-rush-reduced-animations") === "true";
 
   let unlocked = false;
-  let muted = false;
   let currentMode = "silence";
   let activeTrack = null;
-  let failedPlayback = false;
+  let musicFailed = false;
+  let audioError = "";
 
-  function updateButton() {
-    if (!toggleButton) return;
-    const playing = activeTrack && !activeTrack.paused;
-    const label = failedPlayback
-      ? "REINTENTAR AUDIO"
-      : muted
-        ? "AUDIO DESACTIVADO"
-        : playing
-          ? "AUDIO SONANDO"
-          : "AUDIO ACTIVADO";
-    toggleButton.textContent = label;
-    toggleButton.setAttribute("aria-label", label);
-    toggleButton.setAttribute("aria-pressed", String(!muted && Boolean(playing) && !failedPlayback));
-    toggleButton.classList.toggle("audio-error", failedPlayback);
+  function updateSettingsStatus() {
+    if (settingsStatus) {
+      settingsStatus.textContent = audioError || "Los ajustes se guardan en este dispositivo.";
+    }
+    if (retryAudioButton) retryAudioButton.hidden = !musicFailed;
   }
 
   function stopTrack() {
@@ -51,20 +49,22 @@
   }
 
   function playTrack(mode, retry = false) {
-    if (muted || !unlocked || mode === "silence") return;
+    if (!musicEnabled || !unlocked || mode === "silence") return;
     const track = tracks.get(mode);
     if (!track) return;
-    if (failedPlayback && !retry) return;
+    if (musicFailed && !retry) return;
 
     activeTrack = track;
     void track.play().then(() => {
       if (activeTrack !== track || currentMode !== mode) return;
-      failedPlayback = false;
-      updateButton();
+      musicFailed = false;
+      audioError = "";
+      updateSettingsStatus();
     }).catch(error => {
       if (activeTrack !== track || currentMode !== mode) return;
-      failedPlayback = true;
-      updateButton();
+      musicFailed = true;
+      audioError = "No se pudo reproducir el audio. Comprueba los archivos de sonido.";
+      updateSettingsStatus();
       console.error(`No se pudo reproducir la música (${mode}):`, error);
     });
   }
@@ -76,7 +76,9 @@
     if (mode !== currentMode) {
       stopTrack();
       currentMode = mode;
-      failedPlayback = false;
+      musicFailed = false;
+      audioError = "";
+      updateSettingsStatus();
     }
     if (mode === "silence") {
       jumpAudio.pause();
@@ -92,37 +94,72 @@
     unlocked = true;
   }
 
-  function retry() {
-    unlocked = true;
-    muted = false;
-    failedPlayback = false;
-    if (currentMode !== "silence") playTrack(currentMode, true);
-    updateButton();
+  function setMusicEnabled(enabled) {
+    musicEnabled = enabled;
+    localStorage.setItem("pacman-rush-music-enabled", String(enabled));
+    if (enabled) {
+      musicFailed = false;
+      if (currentMode !== "silence") playTrack(currentMode, true);
+    } else {
+      stopTrack();
+    }
+    updateSettingsStatus();
   }
 
-  function toggle() {
-    if (failedPlayback || muted) {
-      retry();
-      return;
+  function setJumpSoundEnabled(enabled) {
+    jumpSoundEnabled = enabled;
+    localStorage.setItem("pacman-rush-jump-enabled", String(enabled));
+    if (!enabled) {
+      jumpAudio.pause();
+      jumpAudio.currentTime = 0;
     }
-    muted = true;
-    stopTrack();
-    jumpAudio.pause();
-    jumpAudio.currentTime = 0;
-    updateButton();
   }
+
+  function retryMusic() {
+    unlocked = true;
+    musicFailed = false;
+    audioError = "";
+    if (musicEnabled && currentMode !== "silence") playTrack(currentMode, true);
+    updateSettingsStatus();
+  }
+
+  function setReducedAnimations(enabled) {
+    reducedAnimations = enabled;
+    localStorage.setItem("pacman-rush-reduced-animations", String(enabled));
+  }
+
+  if (musicToggle) {
+    musicToggle.checked = musicEnabled;
+    musicToggle.addEventListener("change", () => setMusicEnabled(musicToggle.checked));
+  }
+  if (jumpSoundToggle) {
+    jumpSoundToggle.checked = jumpSoundEnabled;
+    jumpSoundToggle.addEventListener("change", () => setJumpSoundEnabled(jumpSoundToggle.checked));
+  }
+  if (reducedAnimationsToggle) {
+    reducedAnimationsToggle.checked = reducedAnimations;
+    reducedAnimationsToggle.addEventListener("change", () => setReducedAnimations(reducedAnimationsToggle.checked));
+  }
+  if (retryAudioButton) retryAudioButton.addEventListener("click", retryMusic);
 
   function playJump() {
-    if (!unlocked || muted) return;
+    if (!unlocked || !jumpSoundEnabled) return;
     jumpAudio.currentTime = 0;
     void jumpAudio.play().catch(error => {
-      failedPlayback = true;
-      updateButton();
+      audioError = "No se pudo reproducir el audio. Comprueba los archivos de sonido.";
+      updateSettingsStatus();
       console.error("No se pudo reproducir el sonido de salto:", error);
     });
   }
 
-  if (toggleButton) toggleButton.addEventListener("click", toggle);
-  updateButton();
-  window.pacmanAudio = { unlock, setMode, playJump, retry };
+  updateSettingsStatus();
+  window.pacmanSettings = {
+    setMusicEnabled,
+    setJumpSoundEnabled,
+    setReducedAnimations,
+    get reducedAnimations() {
+      return reducedAnimations;
+    }
+  };
+  window.pacmanAudio = { unlock, setMode, playJump };
 })();

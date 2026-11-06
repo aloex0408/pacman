@@ -7,10 +7,10 @@
 3. Elige **Other** como framework. Deja vacío el comando de build y no configures una carpeta de salida separada.
 4. Pulsa **Deploy** y abre el dominio asignado. `vercel.json` dirige la página raíz al archivo `Untitled-3.html`.
 
-El juego ya no necesita servidor, base de datos ni variables de entorno: es una aplicación estática. El récord personal se guarda localmente en el navegador de cada jugador.
+El juego ya no necesita servidor, base de datos ni variables de entorno: es una aplicación estática. El récord personal y las preferencias de audio y animación se guardan localmente en el navegador de cada jugador.
 
 ## Audio
 
-`audio.js` reproduce los archivos MP3 locales según la fase: carrera, jefes, Gulag y tienda, además del efecto de salto. Incluye los cinco MP3 en el mismo directorio al desplegar el juego. La música se habilita al iniciar la partida para respetar las restricciones de reproducción automática del navegador.
+`audio.js` reproduce los archivos MP3 locales según la fase: carrera, jefes, Gulag y tienda, además del efecto de salto. El menú **Ajustes** permite desactivar la música o el sonido de salto por separado, o reducir las animaciones de enemigos y efectos visuales sin cambiar el gameplay. Incluye los cinco MP3 en el mismo directorio al desplegar el juego. La música se habilita al iniciar la partida para respetar las restricciones de reproducción automática del navegador.
 
 Cada vez que publiques cambios, súbelos a la rama de GitHub conectada a Production; Vercel creará un nuevo despliegue.
