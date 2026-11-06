@@ -819,7 +819,9 @@ kbd {
 }
 
 .mobile-controls.gulag-active {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 8px;
 }
 
 .mobile-controls.shop-active {
@@ -830,10 +832,49 @@ kbd {
   display: none;
 }
 
-.mobile-controls.gulag-active button {
-  color: #ff244b;
-  background: #150a10;
-  border-color: #632033;
+.gulag-joystick[hidden] {
+  display: none;
+}
+
+.gulag-joystick {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  color: #ff9aaf;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.gulag-joystick-base {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(rgba(255, 36, 75, .2), rgba(255, 36, 75, .2)) center / 2px 68% no-repeat,
+    linear-gradient(90deg, rgba(255, 36, 75, .2), rgba(255, 36, 75, .2)) center / 68% 2px no-repeat,
+    radial-gradient(circle, rgba(255, 36, 75, .16) 0 34%, rgba(255, 36, 75, .07) 35% 64%, rgba(21, 10, 16, .92) 65%);
+  border: 2px solid rgba(255, 73, 110, .8);
+  border-radius: 50%;
+  box-shadow: inset 0 0 16px rgba(255, 36, 75, .22), 0 0 18px rgba(255, 36, 75, .16);
+  touch-action: none;
+}
+
+.gulag-joystick-knob {
+  width: 38px;
+  height: 38px;
+  background: radial-gradient(circle at 35% 30%, #ff8da5, #ff244b 72%);
+  border: 2px solid #ffd4dc;
+  border-radius: 50%;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .45), 0 0 12px rgba(255, 36, 75, .55);
+  pointer-events: none;
+  transform: translate(0, 0);
 }
 
 .mobile-controls button[hidden] {
@@ -863,6 +904,10 @@ kbd {
 .mobile-controls button:active {
   background: var(--lime);
   transform: translateY(1px);
+}
+
+.mobile-controls.gulag-active button {
+  display: none;
 }
 
 .mobile-controls span {

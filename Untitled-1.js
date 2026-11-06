@@ -37,6 +37,9 @@
   const duckButton = document.getElementById("duckButton");
   const shootButton = document.getElementById("shootButton");
   const interactButton = document.getElementById("interactButton");
+  const gulagJoystick = document.getElementById("gulagJoystick");
+  const gulagJoystickBase = gulagJoystick.querySelector(".gulag-joystick-base");
+  const gulagJoystickKnob = document.getElementById("gulagJoystickKnob");
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -98,6 +101,7 @@
   let gulagSpawnTimer = 0;
   let gulagAttackCount = 0;
   let gulagPlayer = { x: 480, y: 235 };
+  let gulagJoystickVector = { x: 0, y: 0 };
   let gulagBones = [];
   let gulagBeams = [];
   let skullAttackCount = 0;
@@ -1206,14 +1210,16 @@
 
   function setGulagControls(active) {
     mobileControls.classList.toggle("gulag-active", active);
+    gulagJoystick.hidden = !active;
     if (active) {
-      mobileControls.classList.add("boss-active");
-      moveLeftButton.hidden = false;
-      moveRightButton.hidden = false;
-      jumpButton.hidden = false;
-      duckButton.hidden = false;
+      mobileControls.classList.remove("boss-active");
+      moveLeftButton.hidden = true;
+      moveRightButton.hidden = true;
+      jumpButton.hidden = true;
+      duckButton.hidden = true;
       shootButton.hidden = true;
       interactButton.hidden = true;
+      resetGulagJoystick();
     } else if (state === "running" && boss.active) {
       mobileControls.classList.add("boss-active");
       moveLeftButton.hidden = false;
@@ -1226,9 +1232,33 @@
       mobileControls.classList.remove("boss-active");
       moveLeftButton.hidden = true;
       moveRightButton.hidden = true;
+      jumpButton.hidden = false;
+      duckButton.hidden = false;
       shootButton.hidden = true;
       interactButton.hidden = true;
     }
+  }
+
+  function resetGulagJoystick() {
+    gulagJoystickVector.x = 0;
+    gulagJoystickVector.y = 0;
+    gulagJoystickKnob.style.transform = "translate(0, 0)";
+  }
+
+  function updateGulagJoystick(event) {
+    const bounds = gulagJoystickBase.getBoundingClientRect();
+    const radius = bounds.width * .34;
+    let x = (event.clientX - (bounds.left + bounds.width / 2)) / radius;
+    let y = (event.clientY - (bounds.top + bounds.height / 2)) / radius;
+    const distance = Math.hypot(x, y);
+    if (distance > 1) {
+      x /= distance;
+      y /= distance;
+    }
+    if (Math.hypot(x, y) < .16) x = y = 0;
+    gulagJoystickVector.x = x;
+    gulagJoystickVector.y = y;
+    gulagJoystickKnob.style.transform = `translate(${x * radius}px, ${y * radius}px)`;
   }
 
   function startGulag() {
@@ -1241,6 +1271,7 @@
     gulagSpawnTimer = .45;
     gulagAttackCount = 0;
     gulagPlayer = { x: WIDTH / 2, y: HEIGHT / 2 + 10 };
+    resetGulagJoystick();
     gulagBones = [];
     gulagBeams = [];
     movementKeys.clear();
@@ -1252,7 +1283,9 @@
       : `EL GULAG · CAÍDA ${gulagDeaths}`;
     gulagHud.querySelector("p").textContent = nightmareUnlocked
       ? "ESQUIVA HUESOS, RÁFAGAS Y RAYOS. SOBREVIVE PARA ENFRENTAR A LA CALAVERA."
-      : "MUÉVETE CON W A S D O LAS FLECHAS";
+      : window.matchMedia("(pointer: coarse)").matches
+        ? "USA EL JOYSTICK O W A S D PARA ESQUIVAR."
+        : "MUÉVETE CON W A S D O LAS FLECHAS";
     gulagTimerEl.textContent = `SOBREVIVE ${gulagDisplayedSecond} s`;
     setGulagControls(true);
   }
@@ -1417,8 +1450,12 @@
       gulagTimerEl.textContent = `SOBREVIVE ${remainingSecond} s`;
     }
 
-    const horizontal = (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0);
-    const vertical = (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0);
+    const horizontal = Math.max(-1, Math.min(1,
+      (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0) + gulagJoystickVector.x
+    ));
+    const vertical = Math.max(-1, Math.min(1,
+      (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0) + gulagJoystickVector.y
+    ));
     const magnitude = Math.hypot(horizontal, vertical) || 1;
     const moveSpeed = 260;
     gulagPlayer.x = Math.max(316, Math.min(644, gulagPlayer.x + horizontal / magnitude * moveSpeed * dt));
@@ -3288,11 +3325,27 @@
   interactButton.addEventListener("click", interactWithShop);
   bindMovementButton(moveLeftButton, "left");
   bindMovementButton(moveRightButton, "right");
+  gulagJoystick.addEventListener("pointerdown", event => {
+    if (state !== "gulag") return;
+    event.preventDefault();
+    gulagJoystick.setPointerCapture(event.pointerId);
+    updateGulagJoystick(event);
+  });
+  gulagJoystick.addEventListener("pointermove", event => {
+    if (state === "gulag" && gulagJoystick.hasPointerCapture(event.pointerId)) {
+      updateGulagJoystick(event);
+    }
+  });
+  const releaseGulagJoystick = () => resetGulagJoystick();
+  gulagJoystick.addEventListener("pointerup", releaseGulagJoystick);
+  gulagJoystick.addEventListener("pointercancel", releaseGulagJoystick);
+  gulagJoystick.addEventListener("lostpointercapture", releaseGulagJoystick);
   window.addEventListener("keydown", handleKey);
   window.addEventListener("keyup", handleKeyUp);
   window.addEventListener("blur", () => {
     movementKeys.clear();
     pacman.duckHeld = false;
+    resetGulagJoystick();
   });
   stage.addEventListener("pointerdown", event => {
     if (event.target.closest("button, input, label")) return;
