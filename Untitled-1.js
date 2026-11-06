@@ -2,7 +2,7 @@
   "use strict";
 
   const canvas = document.getElementById("gameCanvas");
-  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+  const ctx = canvas.getContext("2d", { alpha: false });
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
   let canvasResolutionScale = 1;
