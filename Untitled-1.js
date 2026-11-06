@@ -61,6 +61,9 @@
   const BOSS_INTERVAL = 100000;
   const BOSS_UNLOCK_SECONDS = 60;
   const BOSS_ATTACK_INTERVAL = 6;
+  const PACMAN_WIDTH = 68;
+  const PACMAN_HEIGHT = 66;
+  const BOSS_PACMAN_SCALE = .8;
   const MAX_LIVES = 3;
   const CHERRIES_FOR_POWERUP = 5;
   const POWERUP_DURATION = 5;
@@ -133,8 +136,7 @@
     primary: "#e7d8c6",
     secondary: "#38212c",
     accent: "#ff244b",
-    attack: "skull",
-    attackLabel: "JUICIO ÓSEO"
+    attackLabel: "PATRÓN ÓSEO"
   };
   const planets = [
     { x: 205, y: 100, radius: 48, color: "#7c5cff", ring: true },
@@ -150,16 +152,16 @@
   ];
 
   const bossTypes = [
-    { name: "ALIENÍGENA", primary: "#7c5cff", secondary: "#542fb0", accent: "#c8ff3d", attack: "impact", attackLabel: "IMPACTO" },
-    { name: "TITÁN ROBÓTICO", primary: "#46d7ff", secondary: "#126b9b", accent: "#ffd43b", attack: "barrage", attackLabel: "BARRAGE" },
-    { name: "REINA METEORO", primary: "#ff5f54", secondary: "#9d2e55", accent: "#ffd43b", attack: "meteor", attackLabel: "LLUVIA" },
-    { name: "MEDUSA CÓSMICA", primary: "#46d7ff", secondary: "#24687b", accent: "#c8ff3d", attack: "wave", attackLabel: "OLA" },
-    { name: "CALAVERA ESTELAR", primary: "#f4e7cf", secondary: "#8b6e78", accent: "#ff5f54", attack: "orbs", attackLabel: "ORBE" },
-    { name: "POLILLA LUNAR", primary: "#ff8cc4", secondary: "#7c3f9d", accent: "#46d7ff", attack: "pillar", attackLabel: "PILAR" },
-    { name: "CRISTAL VORAZ", primary: "#46d7ff", secondary: "#3151a4", accent: "#c8ff3d", attack: "minefield", attackLabel: "MINAS" },
-    { name: "DRAGÓN DE NEBULOSA", primary: "#ff5f54", secondary: "#762e52", accent: "#ffd43b", attack: "flames", attackLabel: "LLAMAS" },
-    { name: "CÍCLOPE SOLAR", primary: "#ffd43b", secondary: "#b6542b", accent: "#ff5f54", attack: "claws", attackLabel: "PINZAS" },
-    { name: "ESPECTRO GALÁCTICO", primary: "#7c5cff", secondary: "#29205f", accent: "#46d7ff", attack: "storm", attackLabel: "TORMENTA" }
+    { name: "ALIENÍGENA", primary: "#7c5cff", secondary: "#542fb0", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO" },
+    { name: "TITÁN ROBÓTICO", primary: "#46d7ff", secondary: "#126b9b", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO" },
+    { name: "REINA METEORO", primary: "#ff5f54", secondary: "#9d2e55", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO" },
+    { name: "MEDUSA CÓSMICA", primary: "#46d7ff", secondary: "#24687b", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO" },
+    { name: "CALAVERA ESTELAR", primary: "#f4e7cf", secondary: "#8b6e78", accent: "#ff5f54", attackLabel: "PATRÓN ÓSEO" },
+    { name: "POLILLA LUNAR", primary: "#ff8cc4", secondary: "#7c3f9d", accent: "#46d7ff", attackLabel: "PATRÓN ÓSEO" },
+    { name: "CRISTAL VORAZ", primary: "#46d7ff", secondary: "#3151a4", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO" },
+    { name: "DRAGÓN DE NEBULOSA", primary: "#ff5f54", secondary: "#762e52", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO" },
+    { name: "CÍCLOPE SOLAR", primary: "#ffd43b", secondary: "#b6542b", accent: "#ff5f54", attackLabel: "PATRÓN ÓSEO" },
+    { name: "ESPECTRO GALÁCTICO", primary: "#7c5cff", secondary: "#29205f", accent: "#46d7ff", attackLabel: "PATRÓN ÓSEO" }
   ];
   let undefeatedBossTypes = [...bossTypes];
 
@@ -181,8 +183,8 @@
   const pacman = {
     x: 115,
     y: GROUND_Y - 66,
-    width: 68,
-    height: 66,
+    width: PACMAN_WIDTH,
+    height: PACMAN_HEIGHT,
     vy: 0,
     grounded: true,
     ducking: false,
@@ -206,6 +208,15 @@
 
   function formatScore(value) {
     return Math.floor(value).toString().padStart(5, "0");
+  }
+
+  function setBossPacmanSize(isBossFight) {
+    const scale = isBossFight ? BOSS_PACMAN_SCALE : 1;
+    const width = PACMAN_WIDTH * scale;
+    const height = PACMAN_HEIGHT * scale;
+    pacman.x += (pacman.width - width) / 2;
+    pacman.width = width;
+    pacman.height = height;
   }
 
   function updateHud() {
@@ -599,6 +610,7 @@
     undefeatedBossTypes = [...bossTypes];
     boss.active = false;
     boss.isSkull = false;
+    setBossPacmanSize(false);
     boss.type = bossTypes[0];
     boss.maxHealth = 10;
     boss.health = boss.maxHealth;
@@ -689,6 +701,8 @@
     if (undefeatedBossTypes.length === 0) return;
     boss.active = true;
     boss.isSkull = false;
+    setBossPacmanSize(true);
+    skullAttackCount = 0;
     boss.type = undefeatedBossTypes[Math.floor(Math.random() * undefeatedBossTypes.length)];
     returningToLane = false;
     movementKeys.clear();
@@ -736,6 +750,7 @@
   function activateSkullBoss() {
     boss.active = true;
     boss.isSkull = true;
+    setBossPacmanSize(true);
     boss.type = skullBossType;
     boss.maxHealth = 20;
     boss.health = boss.maxHealth;
@@ -789,6 +804,7 @@
     const skullBossDefeated = boss.isSkull;
     boss.active = false;
     boss.isSkull = false;
+    setBossPacmanSize(false);
     returningToLane = true;
     pacman.y = GROUND_Y - pacman.height;
     pacman.vy = 0;
@@ -876,185 +892,64 @@
     });
   }
 
-  function spawnBossVolley() {
-    const originX = boss.x + boss.width / 2;
-    const originY = boss.y + boss.height * .68;
-    const targetX = pacman.x + pacman.width / 2;
-    const targetY = pacman.y + pacman.height / 2;
-    const count = bossesDefeated < 3 ? 3 : 5;
-    const spread = bossesDefeated < 3 ? .24 : .42;
-    const projectileSpeed = 220 + Math.min(bossesDefeated, 6) * 18;
-    const baseAngle = Math.atan2(targetY - originY, targetX - originX);
-
-    for (let index = 0; index < count; index += 1) {
-      const angle = baseAngle + (index - (count - 1) / 2) * spread;
-      spawnBossHazard(originX, originY, 24, 20, "bone", Math.sin(angle) * projectileSpeed);
-      const projectile = obstacles[obstacles.length - 1];
-      projectile.bossVx = Math.cos(angle) * projectileSpeed + speed;
-      projectile.telegraph = .25;
-    }
-  }
-
   function placeBossAttack() {
     const startX = boss.x + boss.width / 2;
     const groundY = GROUND_Y;
-    const attack = boss.type.attack;
+    skullAttackCount += 1;
+    const enraged = boss.health <= boss.maxHealth / 2;
+    const speedMultiplier = enraged ? 1.25 : 1;
+    const pattern = (skullAttackCount - 1) % 4;
 
-    if (boss.isSkull) {
-      skullAttackCount += 1;
-      const enraged = boss.health <= boss.maxHealth / 2;
-      const projectileSpeed = enraged ? 1.3 : 1;
-      const pattern = (skullAttackCount - 1) % 4;
-
-      if (pattern === 0) {
-        const originX = boss.x + 25;
-        const originY = boss.y + 155;
-        const targetY = pacman.y + pacman.height / 2;
-        const count = enraged ? 7 : 5;
-        for (let index = 0; index < count; index += 1) {
-          const spread = (index - (count - 1) / 2) * (enraged ? .2 : .27);
-          const angle = Math.atan2(targetY - originY, pacman.x - originX) + spread;
-          spawnBossHazard(originX, originY, 28, 20, "bone", Math.sin(angle) * 250 * projectileSpeed);
-          obstacles[obstacles.length - 1].bossVx = Math.cos(angle) * 130 * projectileSpeed;
-        }
-      } else if (pattern === 1) {
-        const count = enraged ? 8 : 6;
-        for (let index = 0; index < count; index += 1) {
-          const x = 340 + index * (enraged ? 40 : 52);
-          const y = index % 2 === 0 ? -24 : -90;
-          spawnBossHazard(x, y, 26, 26, "bone", 270 * projectileSpeed);
-        }
-      } else if (pattern === 2) {
-        const targetX = pacman.x + pacman.width / 2;
-        const rows = enraged ? [150, 195, 240, 285, 330] : [165, 220, 275, 330];
-        for (const y of rows) {
-          if (Math.abs(y - pacman.y - pacman.height / 2) > 35) {
-            spawnBossHazard(Math.max(320, Math.min(650, targetX + 270)), y, 34, 22, "bone");
-          }
-        }
-      } else {
-        const laneWidth = enraged ? 42 : 55;
-        const firstX = pacman.x > WIDTH / 2 ? 350 : 510;
-        for (let index = 0; index < (enraged ? 4 : 3); index += 1) {
-          const x = firstX + index * laneWidth;
-          spawnBossHazard(x, 130, 24, GROUND_Y - 130, "skullBeam");
-        }
+    if (pattern === 0) {
+      const originX = boss.x + 25;
+      const originY = boss.y + 155;
+      const targetX = pacman.x + pacman.width / 2;
+      const targetY = pacman.y + pacman.height / 2;
+      const count = enraged ? 7 : 5;
+      const baseAngle = Math.atan2(targetY - originY, targetX - originX);
+      for (let index = 0; index < count; index += 1) {
+        const angle = baseAngle + (index - (count - 1) / 2) * (enraged ? .2 : .27);
+        const projectileSpeed = 260 * speedMultiplier;
+        spawnBossHazard(
+          originX,
+          originY,
+          28,
+          20,
+          "bone",
+          Math.sin(angle) * projectileSpeed
+        );
+        obstacles[obstacles.length - 1].bossVx = Math.cos(angle) * projectileSpeed;
       }
-
-      if (enraged) {
-        const targetY = pacman.y + pacman.height / 2;
-        for (const offset of [-65, 0, 65]) {
-          const angle = Math.atan2(targetY - (boss.y + 180), pacman.x - boss.x) + offset / 260;
-          spawnBossHazard(
-            boss.x + 20,
-            boss.y + 180,
-            30,
-            22,
-            "bone",
-            Math.sin(angle) * 310
-          );
-          obstacles[obstacles.length - 1].bossVx = Math.cos(angle) * 160;
-        }
+    } else if (pattern === 1) {
+      const count = enraged ? 9 : 7;
+      const spacing = WIDTH / count;
+      const safeLane = Math.floor(Math.random() * count);
+      for (let index = 0; index < count; index += 1) {
+        if (index === safeLane) continue;
+        const y = index % 2 === 0 ? -30 : -95;
+        spawnBossHazard(index * spacing + spacing / 2, y, 26, 26, "bone", 280 * speedMultiplier);
       }
-
-      createBurst(startX, groundY - 35, skullBossType.accent, enraged ? 16 : 10);
-      return;
-    }
-
-    spawnBossVolley();
-
-    if (bossesDefeated === 1) {
-      const easyHazards = {
-        impact: ["spike", 38, 30],
-        barrage: ["meteor", 34, 34],
-        meteor: ["meteor", 34, 34],
-        wave: ["wave", 48, 30],
-        orbs: ["orb", 30, 30],
-        pillar: ["pillar", 28, 38],
-        minefield: ["mine", 30, 30],
-        flames: ["flame", 28, 38],
-        claws: ["claw", 38, 32],
-        storm: ["orb", 30, 30]
-      };
-      const [style, width, height] = easyHazards[attack] || ["wave", 42, 30];
-      spawnBossHazard(startX - width / 2, groundY - height, width, height, style);
-      createBurst(startX, groundY - 35, boss.type.primary, 8);
-      return;
-    }
-
-    if (bossesDefeated >= 2) {
-      if (attack === "meteor") {
-        for (const meteor of [
-          { x: startX - 180, y: -40, vy: 205 },
-          { x: startX - 5, y: -112, vy: 245 },
-          { x: startX + 170, y: -55, vy: 220 }
-        ]) {
-          spawnBossHazard(meteor.x, meteor.y, 34, 34, "meteor", meteor.vy);
-        }
-      } else if (attack === "wave") {
-        spawnBossHazard(startX - 65, groundY - 34, 54, 34, "wave");
-        spawnBossHazard(startX + 145, groundY - 34, 54, 34, "wave");
-      } else if (attack === "orbs") {
-        [225, 275, 325, 245].forEach((y, index) => {
-          spawnBossHazard(startX + index * 105, y, 28, 28, "orb", 0, 22, index * 1.3);
-        });
-      } else if (attack === "pillar") {
-        spawnBossHazard(startX - 105, groundY - 74, 30, 74, "pillar");
-        spawnBossHazard(startX + 145, groundY - 96, 30, 96, "pillar");
-      } else if (attack === "minefield") {
-        [250, 295, 235].forEach((y, index) => {
-          spawnBossHazard(startX + index * 145, y, 28, 28, "mine", 0, 16, index * 1.7);
-        });
-      } else if (attack === "flames") {
-        spawnBossHazard(startX - 105, groundY - 58, 28, 58, "flame");
-        spawnBossHazard(startX + 150, groundY - 78, 30, 78, "flame");
-      } else if (attack === "claws") {
-        spawnBossHazard(startX - 100, groundY - 38, 40, 38, "claw");
-        spawnBossHazard(startX + 155, groundY - 62, 40, 62, "claw");
-      } else {
-        [220, 270, 320].forEach((y, index) => {
-          spawnBossHazard(startX + index * 140, y, 28, 28, "orb", 0, 26, index * 1.5);
-        });
+    } else if (pattern === 2) {
+      const count = enraged ? 4 : 3;
+      const laneWidth = WIDTH / (count + 1);
+      const safeLane = Math.floor(Math.random() * (count + 1));
+      for (let lane = 0; lane <= count; lane += 1) {
+        if (lane === safeLane) continue;
+        spawnBossHazard(lane * laneWidth, 120, 32, groundY - 120, "skullBeam");
       }
-      createBurst(startX, groundY - 35, boss.type.primary, 10);
-      return;
-    }
-
-    if (attack === "impact") {
-      spawnBossHazard(startX - 28, groundY - 58, 56, 58, "spike");
-    } else if (attack === "barrage") {
-      for (let i = 0; i < 3; i += 1) {
-        spawnBossHazard(startX + i * 145, groundY - 38, 38, 38, "meteor");
-      }
-    } else if (attack === "meteor") {
-      for (let i = 0; i < 3; i += 1) {
-        spawnBossHazard(startX + i * 95, -36 - i * 70, 36, 36, "meteor", 230 + i * 35);
-      }
-    } else if (attack === "wave") {
-      spawnBossHazard(startX - 12, groundY - 35, 74, 35, "wave");
-    } else if (attack === "orbs") {
-      [205, 260, 315].forEach((y, i) => {
-        spawnBossHazard(startX + i * 58, y, 32, 32, "orb");
-      });
-    } else if (attack === "pillar") {
-      spawnBossHazard(startX - 21, groundY - 132, 42, 132, "pillar");
-    } else if (attack === "minefield") {
-      for (let i = 0; i < 5; i += 1) {
-        spawnBossHazard(startX + i * 86, groundY - 30, 30, 30, "mine");
-      }
-    } else if (attack === "flames") {
-      spawnBossHazard(startX - 18, groundY - 92, 36, 92, "flame");
-      spawnBossHazard(startX + 118, groundY - 66, 36, 66, "flame");
-    } else if (attack === "claws") {
-      spawnBossHazard(startX - 28, groundY - 46, 56, 46, "claw");
-      spawnBossHazard(startX + 110, groundY - 78, 56, 78, "claw");
     } else {
-      for (let i = 0; i < 5; i += 1) {
-        const heights = [225, 295, 245, 315, 215];
-        spawnBossHazard(startX + i * 64, heights[i], 28, 28, "orb");
+      const count = enraged ? 7 : 5;
+      const targetX = pacman.x + pacman.width / 2;
+      for (let index = 0; index < count; index += 1) {
+        const offset = (index - (count - 1) / 2) * 42;
+        const x = Math.max(0, Math.min(WIDTH - 30, targetX + offset));
+        const y = index % 2 === 0 ? groundY - 36 : 105;
+        spawnBossHazard(x, y, 30, 22, "bone");
+        obstacles[obstacles.length - 1].telegraph = .55;
       }
     }
-    createBurst(startX, groundY - 35, boss.type.primary, 8);
+
+    createBurst(startX, groundY - 35, boss.type.accent, enraged ? 16 : 10);
   }
 
   function spawnAmmoPickup() {
@@ -1182,10 +1077,21 @@
   }
 
   function getPacmanHitBox() {
+    const scale = boss.active ? BOSS_PACMAN_SCALE : 1;
     if (pacman.ducking) {
-      return { x: pacman.x + 12, y: GROUND_Y - 28, width: 38, height: 28 };
+      return {
+        x: pacman.x + 12 * scale,
+        y: GROUND_Y - 28 * scale,
+        width: 38 * scale,
+        height: 28 * scale
+      };
     }
-    return { x: pacman.x + 10, y: pacman.y + 7, width: 40, height: 52 };
+    return {
+      x: pacman.x + 10 * scale,
+      y: pacman.y + 7 * scale,
+      width: 40 * scale,
+      height: 52 * scale
+    };
   }
 
   function collides(a, b) {
@@ -2024,6 +1930,7 @@
         ctx.fillRect(beam.x - 3, 126, 6, 228);
       }
       ctx.restore();
+      ctx.restore();
     }
 
     for (const bone of gulagBones) {
@@ -2160,8 +2067,11 @@
 
   function drawBoss() {
     if (!boss.active) return;
+    ctx.save();
+    ctx.globalAlpha = .68;
     if (boss.isSkull) {
       drawSkullBoss();
+      ctx.restore();
       return;
     }
     const type = boss.type;
@@ -2402,6 +2312,7 @@
     ctx.closePath();
     ctx.fill();
 
+    ctx.restore();
     ctx.restore();
   }
 
@@ -2729,6 +2640,7 @@
     ctx.globalCompositeOperation = "source-over";
     ctx.filter = "none";
     ctx.translate(centerX, centerY);
+    if (boss.active) ctx.scale(BOSS_PACMAN_SCALE, BOSS_PACMAN_SCALE);
     if (pacman.facing < 0) {
       ctx.scale(-1, 1);
     }
@@ -3067,59 +2979,8 @@
             ctx.fillStyle = boss.type.accent;
             ctx.fill();
           }
-        } else if (hazardStyle === "orb") {
-          ctx.arc(obstacle.width / 2, obstacle.height / 2, obstacle.width * .43, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = boss.type.accent;
-          ctx.beginPath();
-          ctx.arc(obstacle.width * .35, obstacle.height * .35, obstacle.width * .12, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (hazardStyle === "wave") {
-          ctx.moveTo(0, obstacle.height);
-          ctx.quadraticCurveTo(obstacle.width * .25, -4, obstacle.width * .5, obstacle.height * .55);
-          ctx.quadraticCurveTo(obstacle.width * .75, 0, obstacle.width, obstacle.height);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        } else if (hazardStyle === "pillar" || hazardStyle === "flame") {
-          ctx.moveTo(obstacle.width * .5, 0);
-          ctx.quadraticCurveTo(obstacle.width * .95, obstacle.height * .3, obstacle.width * .75, obstacle.height);
-          ctx.lineTo(obstacle.width * .2, obstacle.height);
-          ctx.quadraticCurveTo(obstacle.width * .05, obstacle.height * .35, obstacle.width * .5, 0);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        } else if (hazardStyle === "mine") {
-          ctx.arc(obstacle.width / 2, obstacle.height / 2, obstacle.width * .35, 0, Math.PI * 2);
-          ctx.fill();
-          for (let i = 0; i < 8; i += 1) {
-            const angle = i * Math.PI / 4;
-            ctx.moveTo(obstacle.width / 2 + Math.cos(angle) * obstacle.width * .3, obstacle.height / 2 + Math.sin(angle) * obstacle.height * .3);
-            ctx.lineTo(obstacle.width / 2 + Math.cos(angle) * obstacle.width * .5, obstacle.height / 2 + Math.sin(angle) * obstacle.height * .5);
-          }
-          ctx.stroke();
-        } else if (hazardStyle === "claw") {
-          ctx.ellipse(obstacle.width / 2, obstacle.height * .58, obstacle.width * .42, obstacle.height * .38, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.moveTo(obstacle.width * .2, obstacle.height * .4);
-          ctx.lineTo(0, 0);
-          ctx.lineTo(obstacle.width * .47, obstacle.height * .27);
-          ctx.moveTo(obstacle.width * .8, obstacle.height * .4);
-          ctx.lineTo(obstacle.width, 0);
-          ctx.lineTo(obstacle.width * .53, obstacle.height * .27);
-          ctx.stroke();
         } else {
-          ctx.moveTo(obstacle.width * .5, 0);
-          ctx.lineTo(obstacle.width, obstacle.height * .42);
-          ctx.lineTo(obstacle.width * .78, obstacle.height);
-          ctx.lineTo(obstacle.width * .18, obstacle.height);
-          ctx.lineTo(0, obstacle.height * .48);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = boss.type.accent;
-          ctx.beginPath();
-          ctx.arc(obstacle.width * .5, obstacle.height * .58, Math.min(5, obstacle.width * .12), 0, Math.PI * 2);
-          ctx.fill();
+          throw new Error(`Unknown boss hazard style: ${hazardStyle}`);
         }
         ctx.shadowBlur = 0;
         ctx.restore();
