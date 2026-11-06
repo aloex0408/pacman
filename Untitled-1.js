@@ -111,6 +111,7 @@
   let gulagAttackCount = 0;
   let gulagPlayer = { x: 480, y: 235 };
   let gulagJoystickVector = { x: 0, y: 0 };
+  let bossJoystickVector = { x: 0, y: 0 };
   let gulagBones = [];
   let gulagBeams = [];
   let skullAttackCount = 0;
@@ -1240,23 +1241,29 @@
   function resetGulagJoystick() {
     gulagJoystickVector.x = 0;
     gulagJoystickVector.y = 0;
+    bossJoystickVector.x = 0;
+    bossJoystickVector.y = 0;
     gulagJoystickKnob.style.transform = "translate(0, 0)";
   }
 
   function updateGulagJoystick(event) {
     const bounds = gulagJoystickBase.getBoundingClientRect();
-    const radius = bounds.width * .34;
-    let x = (event.clientX - (bounds.left + bounds.width / 2)) / radius;
-    let y = (event.clientY - (bounds.top + bounds.height / 2)) / radius;
+    const radiusX = bounds.width * .34;
+    const radiusY = bounds.height * .34;
+    let x = (event.clientX - (bounds.left + bounds.width / 2)) / radiusX;
+    let y = (event.clientY - (bounds.top + bounds.height / 2)) / radiusY;
     const distance = Math.hypot(x, y);
     if (distance > 1) {
       x /= distance;
       y /= distance;
     }
     if (Math.hypot(x, y) < .16) x = y = 0;
-    gulagJoystickVector.x = x;
-    gulagJoystickVector.y = y;
-    gulagJoystickKnob.style.transform = `translate(${x * radius}px, ${y * radius}px)`;
+    const activeVector = state === "running" && boss.active
+      ? bossJoystickVector
+      : gulagJoystickVector;
+    activeVector.x = x;
+    activeVector.y = y;
+    gulagJoystickKnob.style.transform = `translate(${x * radiusX}px, ${y * radiusY}px)`;
   }
 
   function startGulag() {
@@ -1668,8 +1675,8 @@
       let verticalDirection =
         (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0);
       if (bossJoystickEnabled) {
-        horizontalDirection += gulagJoystickVector.x;
-        verticalDirection += gulagJoystickVector.y;
+        horizontalDirection += bossJoystickVector.x;
+        verticalDirection += bossJoystickVector.y;
       }
       const directionMagnitude = Math.hypot(horizontalDirection, verticalDirection);
       if (directionMagnitude > 1) {
