@@ -2134,10 +2134,16 @@
     ctx.ellipse(412, 213, 48, 60, -.12, 0, Math.PI * 2);
     ctx.ellipse(548, 213, 48, 60, .12, 0, Math.PI * 2);
     ctx.fill();
+    const leftEyeDirection = Math.atan2(gulagPlayer.y - 213, gulagPlayer.x - 412);
+    const rightEyeDirection = Math.atan2(gulagPlayer.y - 213, gulagPlayer.x - 548);
+    const leftEyeOffsetX = Math.cos(leftEyeDirection) * 15;
+    const leftEyeOffsetY = Math.sin(leftEyeDirection) * 17;
+    const rightEyeOffsetX = Math.cos(rightEyeDirection) * 15;
+    const rightEyeOffsetY = Math.sin(rightEyeDirection) * 17;
     ctx.fillStyle = "#ff153c";
     ctx.beginPath();
-    ctx.ellipse(416, 214, 10, 27, -.1, 0, Math.PI * 2);
-    ctx.ellipse(544, 214, 10, 27, .1, 0, Math.PI * 2);
+    ctx.ellipse(416 + leftEyeOffsetX, 214 + leftEyeOffsetY, 10, 27, -.1, 0, Math.PI * 2);
+    ctx.ellipse(544 + rightEyeOffsetX, 214 + rightEyeOffsetY, 10, 27, .1, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.shadowBlur = 0;
