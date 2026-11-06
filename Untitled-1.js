@@ -120,6 +120,7 @@
   const DASH_COOLDOWN = 1.8;
   const MAX_LIVES = 4;
   const STARTING_LIVES = 3;
+  const GAMEPAD_DEADZONE = .22;
   const CHERRIES_FOR_POWERUP = 5;
   const POWERUP_DURATION = 5;
   const FRENZY_KILLS_FOR_BOSS = 10;
@@ -188,6 +189,8 @@
   let bossSpeedLevel = 0;
   let dashLevel = 0;
   const movementKeys = new Set();
+  const gamepadDirection = { x: 0, y: 0 };
+  let previousGamepadButtons = new Set();
   let particles = [];
   let obstacles = [];
   let cherries = [];
@@ -295,7 +298,11 @@
     setTextIfChanged(scoreEl, formatScore(score));
     setTextIfChanged(bestEl, formatScore(best));
     setTextIfChanged(multiplierEl, `×${multiplier * 2 ** scoreBoostLevel}`);
-    setTextIfChanged(livesEl, "❤".repeat(lives) + "♡".repeat(MAX_LIVES - lives));
+    const availableLifeSlots = STARTING_LIVES + Number(bonusLifePurchased);
+    setTextIfChanged(
+      livesEl,
+      "❤".repeat(lives) + "♡".repeat(Math.max(0, availableLifeSlots - lives))
+    );
     setTextIfChanged(coinCountEl, String(coins));
     setTextIfChanged(shopCoinCountEl, String(coins));
 
@@ -837,6 +844,8 @@
     let vertical = (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0);
     horizontal += bossJoystickVector.x;
     vertical += bossJoystickVector.y;
+    horizontal += gamepadDirection.x;
+    vertical += gamepadDirection.y;
     const magnitude = Math.hypot(horizontal, vertical);
     if (magnitude > 0) {
       horizontal /= magnitude;
@@ -1743,10 +1752,12 @@
     }
 
     let horizontal = Math.max(-1, Math.min(1,
-      (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0) + gulagJoystickVector.x
+      (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0) +
+      gulagJoystickVector.x + gamepadDirection.x
     ));
     let vertical = Math.max(-1, Math.min(1,
-      (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0) + gulagJoystickVector.y
+      (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0) +
+      gulagJoystickVector.y + gamepadDirection.y
     ));
     const magnitude = Math.hypot(horizontal, vertical) || 1;
     const moveSpeed = 260;
@@ -1947,9 +1958,11 @@
 
     if (boss.active) {
       let horizontalDirection =
-        (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0);
+        (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0) +
+        gamepadDirection.x;
       let verticalDirection =
-        (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0);
+        (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0) +
+        gamepadDirection.y;
       if (bossJoystickEnabled) {
         horizontalDirection += bossJoystickVector.x;
         verticalDirection += bossJoystickVector.y;
@@ -1993,7 +2006,9 @@
     if (!boss.active && shopVisit && !shopOpen) {
       const movingLeft = movementKeys.has("left");
       const movingRight = movementKeys.has("right");
-      const direction = movingLeft === movingRight ? 0 : movingLeft ? -1 : 1;
+      const direction = Math.max(-1, Math.min(1,
+        (movingLeft ? -1 : 0) + (movingRight ? 1 : 0) + gamepadDirection.x
+      ));
       pacman.x = Math.max(0, Math.min(WIDTH - pacman.width, pacman.x + direction * 340 * dt));
       if (direction !== 0) pacman.facing = direction;
     } else if (returningToLane) {
@@ -3976,6 +3991,75 @@
     }
   }
 
+  function pollGamepad() {
+    let activeGamepad = null;
+    if (typeof navigator.getGamepads === "function") {
+      activeGamepad = Array.from(navigator.getGamepads()).find(gamepad =>
+        gamepad && gamepad.connected
+      ) || null;
+    }
+
+    const pressedButtons = new Set();
+    const pressed = buttonIndex => {
+      const button = activeGamepad && activeGamepad.buttons[buttonIndex];
+      const isPressed = Boolean(button && (button.pressed || button.value > .5));
+      if (isPressed) pressedButtons.add(buttonIndex);
+      return isPressed;
+    };
+    const justPressed = buttonIndex =>
+      pressedButtons.has(buttonIndex) && !previousGamepadButtons.has(buttonIndex);
+
+    if (!activeGamepad) {
+      gamepadDirection.x = 0;
+      gamepadDirection.y = 0;
+      if (previousGamepadButtons.has(0)) {
+        pacman.duckHeld = false;
+        movementKeys.delete("down");
+      }
+    } else {
+      const axis = (index, invert = false) => {
+        let value = activeGamepad.axes[index] || 0;
+        if (Math.abs(value) < GAMEPAD_DEADZONE) value = 0;
+        return invert ? -value : value;
+      };
+      const moveLeft = pressed(14);
+      const moveRight = pressed(15);
+      const moveUp = pressed(12);
+      const moveDown = pressed(13);
+      const duckPressed = pressed(0);
+      const jumpPressed = pressed(1);
+      const startPressed = pressed(9);
+
+      gamepadDirection.x = Math.max(-1, Math.min(1,
+        axis(0) + (moveRight ? 1 : 0) - (moveLeft ? 1 : 0)
+      ));
+      gamepadDirection.y = Math.max(-1, Math.min(1,
+        axis(1) + (moveDown ? 1 : 0) - (moveUp ? 1 : 0)
+      ));
+
+      if (justPressed(1) && (state === "ready" || state === "gameover")) {
+        startGame();
+      } else if (justPressed(1) && state === "running" && !boss.active) {
+        jump();
+      }
+      if (state === "running" && !boss.active && duckPressed && !previousGamepadButtons.has(0)) {
+        duck();
+      }
+      if (!duckPressed && previousGamepadButtons.has(0)) {
+        pacman.duckHeld = false;
+        movementKeys.delete("down");
+      }
+      if (justPressed(3)) dash();
+      if (justPressed(9)) {
+        if (state === "ready" || state === "gameover") startGame();
+        else togglePause();
+      }
+    }
+
+    previousGamepadButtons = pressedButtons;
+    requestAnimationFrame(pollGamepad);
+  }
+
   function handleKey(event) {
     if (event.code === "Escape") {
       if (document.getElementById("settingsMenu").open) return;
@@ -4112,6 +4196,7 @@
   gulagJoystick.addEventListener("lostpointercapture", releaseGulagJoystick);
   window.addEventListener("keydown", handleKey);
   window.addEventListener("keyup", handleKeyUp);
+  requestAnimationFrame(pollGamepad);
   window.addEventListener("pacman-boss-track-ended", event => {
     if (!boss.active || state !== "running" || event.detail.mode !== boss.type.musicMode) return;
     defeatBoss();
