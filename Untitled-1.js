@@ -1003,6 +1003,7 @@
       width,
       height,
       vy,
+      life: 3,
       telegraph: style === "skullBeam" ? 1.05 : 0,
       bobAmplitude,
       phase,
@@ -1830,6 +1831,8 @@
 
     for (const obstacle of obstacles) {
       if (obstacle.type === "bossObstacle") {
+        obstacle.life -= dt;
+        if (obstacle.life <= 0) continue;
         if (obstacle.bossHoming && obstacle.telegraph <= 0) {
           const targetX = pacman.x + pacman.width / 2;
           const targetY = pacman.y + pacman.height / 2;
@@ -1876,7 +1879,8 @@
     }
 
     obstacles = compactArray(obstacles, obstacle => obstacle.type === "bossObstacle"
-      ? obstacle.x < WIDTH + 100 &&
+      ? obstacle.life > 0 &&
+        obstacle.x < WIDTH + 100 &&
         obstacle.x + obstacle.width > -100 &&
         obstacle.y < GROUND_Y + 120 &&
         obstacle.y + obstacle.height > -120
@@ -1893,6 +1897,7 @@
 
     const pacmanBox = getPacmanHitBox();
     for (const obstacle of obstacles) {
+      if (obstacle.type === "bossObstacle" && obstacle.life <= 0) continue;
       if (obstacle.telegraph > 0) continue;
       const obstacleBox = obstacle.type === "ship"
         ? { x: obstacle.x + 10, y: obstacle.y + 8, width: obstacle.width - 20, height: obstacle.height - 10 }
