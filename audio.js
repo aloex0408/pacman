@@ -12,10 +12,13 @@
       const audio = new Audio(source);
       audio.loop = true;
       audio.preload = "none";
-      audio.volume = .65;
+      audio.volume = 0;
       return [mode, audio];
     })
   );
+  const MUSIC_VOLUME = .65;
+  const MUSIC_FADE_DURATION = 350;
+  const trackFades = new Map();
   const jumpAudio = new Audio("dragon-studio-cartoon-jump-463196 (1) - copia.mp3");
   jumpAudio.preload = "auto";
   jumpAudio.volume = .85;
@@ -36,8 +39,32 @@
   let unlocked = false;
   let currentMode = "silence";
   let activeTrack = null;
+  let audioPaused = false;
   let musicFailed = false;
   let audioError = "";
+
+  function cancelTrackFade(track) {
+    const timer = trackFades.get(track);
+    if (timer !== undefined) {
+      clearInterval(timer);
+      trackFades.delete(track);
+    }
+  }
+
+  function fadeTrack(track, targetVolume, onComplete) {
+    cancelTrackFade(track);
+    const startingVolume = track.volume;
+    const startedAt = performance.now();
+    const timer = setInterval(() => {
+      const progress = Math.min(1, (performance.now() - startedAt) / MUSIC_FADE_DURATION);
+      track.volume = startingVolume + (targetVolume - startingVolume) * progress;
+      if (progress < 1) return;
+      clearInterval(timer);
+      trackFades.delete(track);
+      if (onComplete) onComplete();
+    }, 30);
+    trackFades.set(track, timer);
+  }
 
   function updateSettingsStatus() {
     if (settingsStatus) {
@@ -47,14 +74,17 @@
   }
 
   function stopTrack() {
-    if (!activeTrack) return;
-    activeTrack.pause();
-    if (activeTrack !== tracks.get("gulag")) activeTrack.currentTime = 0;
+    for (const track of tracks.values()) {
+      cancelTrackFade(track);
+      track.pause();
+      if (track !== tracks.get("gulag")) track.currentTime = 0;
+      track.volume = 0;
+    }
     activeTrack = null;
   }
 
   function playTrack(mode, retry = false) {
-    if (!musicEnabled || !unlocked || mode === "silence") return;
+    if (!musicEnabled || !unlocked || audioPaused || mode === "silence") return;
     const track = tracks.get(mode);
     if (!track) return;
     if (musicFailed && !retry) return;
@@ -62,11 +92,13 @@
     activeTrack = track;
     void track.play().then(() => {
       if (activeTrack !== track || currentMode !== mode) return;
+      if (!audioPaused) fadeTrack(track, MUSIC_VOLUME);
       musicFailed = false;
       audioError = "";
       updateSettingsStatus();
     }).catch(error => {
       if (activeTrack !== track || currentMode !== mode) return;
+      if (audioPaused && error.name === "AbortError") return;
       musicFailed = true;
       audioError = "No se pudo reproducir el audio. Comprueba los archivos de sonido.";
       updateSettingsStatus();
@@ -78,25 +110,53 @@
     if (mode !== "silence" && !tracks.has(mode)) {
       throw new Error(`Unknown game audio mode: ${mode}`);
     }
-    if (mode !== currentMode) {
-      stopTrack();
-      currentMode = mode;
-      musicFailed = false;
-      audioError = "";
-      updateSettingsStatus();
+    if (mode === currentMode) {
+      if (mode !== "silence" && (activeTrack !== tracks.get(mode) || activeTrack.paused)) {
+        playTrack(mode);
+      }
+      return;
+    }
+
+    const previousTrack = activeTrack;
+    activeTrack = null;
+    currentMode = mode;
+    musicFailed = false;
+    audioError = "";
+    updateSettingsStatus();
+    if (previousTrack) {
+      fadeTrack(previousTrack, 0, () => {
+        if (activeTrack === previousTrack) return;
+        previousTrack.pause();
+        if (previousTrack !== tracks.get("gulag")) previousTrack.currentTime = 0;
+      });
     }
     if (mode === "silence") {
       jumpAudio.pause();
       jumpAudio.currentTime = 0;
       return;
     }
-    if (activeTrack !== tracks.get(mode) || activeTrack.paused) {
-      playTrack(mode);
-    }
+    playTrack(mode);
   }
 
   function unlock() {
     unlocked = true;
+  }
+
+  function pause() {
+    audioPaused = true;
+    for (const track of tracks.values()) {
+      cancelTrackFade(track);
+      track.pause();
+      if (track !== activeTrack) {
+        if (track !== tracks.get("gulag")) track.currentTime = 0;
+        track.volume = 0;
+      }
+    }
+  }
+
+  function resume() {
+    audioPaused = false;
+    if (musicEnabled && currentMode !== "silence") playTrack(currentMode, true);
   }
 
   function setMusicEnabled(enabled) {
@@ -183,5 +243,5 @@
       return reducedAnimations;
     }
   };
-  window.pacmanAudio = { unlock, setMode, playJump };
+  window.pacmanAudio = { unlock, setMode, pause, resume, playJump };
 })();

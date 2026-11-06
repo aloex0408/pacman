@@ -25,7 +25,10 @@
   const bossName = document.getElementById("bossName");
   const bossStatus = document.getElementById("bossStatus");
   const bossAttackStatus = document.getElementById("bossAttackStatus");
+  const bossAttackHint = document.getElementById("bossAttackHint");
   const bossIntroStatus = document.getElementById("bossIntroStatus");
+  const gamePauseButton = document.getElementById("gamePauseButton");
+  const pausePanel = document.getElementById("pausePanel");
   const ammoCount = document.getElementById("ammoCount");
   const livesEl = document.getElementById("lives");
   const powerStatusEl = document.getElementById("powerStatus");
@@ -47,6 +50,23 @@
 
   function setCanvasLogicalTransform() {
     ctx.setTransform(canvasResolutionScale, 0, 0, canvasResolutionScale, 0, 0);
+  }
+
+  function updateBossAttackCue() {
+    const patterns = [
+      "RÁFAGA DE HUESOS · CAMBIA DE ALTURA",
+      "LLUVIA DE HUESOS · BUSCA UN HUECO",
+      "RAYOS · QUEDA UN CARRIL SEGURO",
+      "HUESOS TELEDIRIGIDOS · MANTENTE EN MOVIMIENTO"
+    ];
+    setTextIfChanged(bossAttackHint, `SIGUIENTE: ${patterns[skullAttackCount % patterns.length]}`);
+  }
+
+  function updateBossAttackCountdown() {
+    const seconds = Math.ceil(bossObstacleTimer);
+    const countdown = seconds <= 2 ? `¡PREPÁRATE! · ${seconds}s` : `ATAQUE EN: ${seconds}s`;
+    setTextIfChanged(bossAttackStatus, countdown);
+    bossAttackStatus.classList.toggle("boss-attack-imminent", bossObstacleTimer <= 2);
   }
 
   function updateCanvasResolution(mobileModeEnabled) {
@@ -98,6 +118,7 @@
   const FIRST_SHOP_SCORE = 75000;
 
   let state = "ready";
+  let pausedFromState = null;
   let runElapsed = 0;
   let pendingBoss = false;
   let pendingBossAdvancesThreshold = false;
@@ -694,10 +715,47 @@
     gameOverPanel.hidden = true;
     victoryPanel.hidden = true;
     resetGame();
+    pausedFromState = null;
+    syncPauseControls();
     window.pacmanAudio.unlock();
     window.pacmanAudio.setMode("race");
     lastTime = performance.now();
     requestAnimationFrame(gameLoop);
+  }
+
+  function syncPauseControls() {
+    const canPause = ["running", "falling", "gulagIntro", "gulag", "paused"].includes(state);
+    gamePauseButton.hidden = !canPause;
+    gamePauseButton.textContent = state === "paused" ? "▶" : "Ⅱ";
+    gamePauseButton.setAttribute("aria-label", state === "paused" ? "Reanudar juego" : "Pausar juego");
+    pausePanel.hidden = state !== "paused";
+    mobileControls.classList.toggle("paused", state === "paused");
+  }
+
+  function togglePause() {
+    if (state === "paused") {
+      state = pausedFromState;
+      pausedFromState = null;
+      movementKeys.clear();
+      pacman.duckHeld = false;
+      resetGulagJoystick();
+      lastTime = performance.now();
+      window.pacmanAudio.resume();
+      syncPauseControls();
+      gamePauseButton.focus();
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+
+    if (!["running", "falling", "gulagIntro", "gulag"].includes(state)) return;
+    pausedFromState = state;
+    state = "paused";
+    movementKeys.clear();
+    pacman.duckHeld = false;
+    resetGulagJoystick();
+    window.pacmanAudio.pause();
+    syncPauseControls();
+    document.getElementById("resumeButton").focus();
   }
 
   function jump() {
@@ -783,7 +841,8 @@
     bossPanel.hidden = false;
     bossName.textContent = boss.type.name;
     bossStatus.textContent = `SALUD: ${boss.maxHealth}`;
-    bossAttackStatus.textContent = `${boss.type.attackLabel} EN: ${bossObstacleTimer}s`;
+    updateBossAttackCue();
+    updateBossAttackCountdown();
     bossIntroStatus.hidden = false;
     bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
     updateAmmoCount();
@@ -838,7 +897,8 @@
     bossPanel.hidden = false;
     bossName.textContent = boss.type.name;
     bossStatus.textContent = `SALUD: ${boss.maxHealth}`;
-    bossAttackStatus.textContent = `${boss.type.attackLabel} EN: ${bossObstacleTimer}s`;
+    updateBossAttackCue();
+    updateBossAttackCountdown();
     bossIntroStatus.hidden = false;
     bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
     updateAmmoCount();
@@ -884,6 +944,7 @@
       milestoneValue.textContent = "JEFE DERROTADO";
       if (bossesDefeated === bossTypes.length) {
         state = "victory";
+        syncPauseControls();
         returningToLane = false;
         victoryScoreEl.textContent = formatScore(score);
         victoryPanel.hidden = false;
@@ -942,14 +1003,14 @@
       width,
       height,
       vy,
-      telegraph: style === "skullBeam" ? .75 : 0,
+      telegraph: style === "skullBeam" ? 1.05 : 0,
       bobAmplitude,
       phase,
       passed: false
     });
   }
 
-  function makeBossHazardHome(hazard, projectileSpeed, telegraph = .3) {
+  function makeBossHazardHome(hazard, projectileSpeed, telegraph = .55) {
     const targetX = pacman.x + pacman.width / 2;
     const targetY = pacman.y + pacman.height / 2;
     const originX = hazard.x + hazard.width / 2;
@@ -988,7 +1049,7 @@
           "bone",
           Math.sin(angle) * projectileSpeed
         );
-        makeBossHazardHome(obstacles[obstacles.length - 1], projectileSpeed, .25);
+        makeBossHazardHome(obstacles[obstacles.length - 1], projectileSpeed, .55);
       }
     } else if (pattern === 1) {
       const count = enraged ? 9 : 7;
@@ -1001,7 +1062,7 @@
         if (index === safeLane) continue;
         const y = index % 2 === 0 ? -30 : -95;
         spawnBossHazard(index * spacing + spacing / 2, y, 26, 26, "bone");
-        makeBossHazardHome(obstacles[obstacles.length - 1], 245 * speedMultiplier, .45);
+        makeBossHazardHome(obstacles[obstacles.length - 1], 245 * speedMultiplier, .65);
       }
     } else if (pattern === 2) {
       const count = enraged ? 4 : 3;
@@ -1022,7 +1083,7 @@
         const x = Math.max(0, Math.min(WIDTH - 30, targetX + offset));
         const y = index % 2 === 0 ? groundY - 36 : 105;
         spawnBossHazard(x, y, 30, 22, "bone");
-        makeBossHazardHome(obstacles[obstacles.length - 1], 220 * speedMultiplier, .55);
+        makeBossHazardHome(obstacles[obstacles.length - 1], 220 * speedMultiplier, .8);
       }
     }
 
@@ -1197,6 +1258,7 @@
   function endGame() {
     if (state === "gameover") return;
     state = "gameover";
+    syncPauseControls();
     window.pacmanAudio.setMode("silence");
     gulagHud.hidden = true;
     setGulagControls(false);
@@ -1602,8 +1664,9 @@
         bossObstacleTimer = boss.isSkull
           ? boss.health <= boss.maxHealth / 2 ? 1.8 : 2.8
           : getBossAttackInterval();
+        updateBossAttackCue();
       }
-      setTextIfChanged(bossAttackStatus, `${boss.type.attackLabel} EN: ${Math.ceil(bossObstacleTimer)}s`);
+      updateBossAttackCountdown();
       ammoSpawnTimer -= dt;
       if (ammoSpawnTimer <= 0 && ammoPickups.length === 0) {
         spawnAmmoPickup();
@@ -3194,7 +3257,16 @@
             ctx.fillRect(obstacle.width * .43, 0, obstacle.width * .14, obstacle.height);
           }
         } else if (hazardStyle === "bone") {
-          if (obstacle.telegraph > 0) ctx.globalAlpha = .3;
+          if (obstacle.telegraph > 0) {
+            ctx.globalAlpha = .72;
+            ctx.shadowColor = boss.type.accent;
+            ctx.shadowBlur = 12;
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(-4, -4, obstacle.width + 8, obstacle.height + 8);
+            ctx.setLineDash([]);
+          }
           ctx.lineCap = "round";
           ctx.lineWidth = 7;
           ctx.moveTo(obstacle.width * .2, obstacle.height * .8);
@@ -3329,6 +3401,13 @@
   }
 
   function handleKey(event) {
+    if (event.code === "Escape") {
+      if (document.getElementById("settingsMenu").open) return;
+      event.preventDefault();
+      if (!event.repeat) togglePause();
+      return;
+    }
+    if (state === "paused") return;
     if (event.code === "KeyF" && (state === "gameover" || state === "victory")) {
       event.preventDefault();
       startGame();
@@ -3402,6 +3481,9 @@
   document.getElementById("startButton").addEventListener("click", startGame);
   document.getElementById("restartButton").addEventListener("click", startGame);
   document.getElementById("victoryRestartButton").addEventListener("click", startGame);
+  gamePauseButton.addEventListener("click", togglePause);
+  document.getElementById("resumeButton").addEventListener("click", togglePause);
+  document.getElementById("pauseRestartButton").addEventListener("click", startGame);
   document.getElementById("shopContinueButton").addEventListener("click", closeSharkShop);
   for (const shopItemButton of sharkShopPanel.querySelectorAll("[data-shop-item]")) {
     shopItemButton.addEventListener("click", () => purchaseShopItem(shopItemButton.dataset.shopItem));
