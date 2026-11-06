@@ -545,6 +545,11 @@ kbd {
   font-size: 12px;
 }
 
+.gulag-hud:not(.gulag-intro) strong,
+.gulag-hud:not(.gulag-intro) p {
+  display: none;
+}
+
 .gulag-hud p {
   margin: 5px 0 0;
   color: #c7b8c0;

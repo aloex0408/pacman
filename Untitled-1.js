@@ -64,6 +64,7 @@
   const PACMAN_WIDTH = 68;
   const PACMAN_HEIGHT = 66;
   const BOSS_PACMAN_SCALE = .8;
+  const GULAG_INTRO_DURATION = 3;
   const MAX_LIVES = 3;
   const CHERRIES_FOR_POWERUP = 5;
   const POWERUP_DURATION = 5;
@@ -100,6 +101,7 @@
   let gulagReentriesAvailable = 0;
   let fallTimer = 0;
   let gulagTime = 0;
+  let gulagIntroTime = 0;
   let gulagDisplayedSecond = -1;
   let gulagSpawnTimer = 0;
   let gulagAttackCount = 0;
@@ -603,6 +605,7 @@
     fallTimer = 0;
     gulagTime = 0;
     gulagDisplayedSecond = -1;
+    gulagIntroTime = 0;
     gulagSpawnTimer = 0;
     gulagAttackCount = 0;
     gulagBones = [];
@@ -623,6 +626,7 @@
     movementKeys.clear();
     bossPanel.hidden = true;
     gulagHud.hidden = true;
+    gulagHud.classList.remove("gulag-intro");
     sharkShopPanel.hidden = true;
     updateAmmoCount();
     mobileControls.classList.remove("boss-active");
@@ -1169,11 +1173,12 @@
   }
 
   function startGulag() {
-    state = "gulag";
+    state = "gulagIntro";
     const nightmareUnlocked = gulagDeaths >= 10 && !skullBossCleared;
     gulagTime = nightmareUnlocked
       ? 15 + Math.min(gulagDeaths - 10, 5)
       : 4 + Math.min(gulagDeaths - 1, 8) * .65;
+    gulagIntroTime = GULAG_INTRO_DURATION;
     gulagDisplayedSecond = Math.ceil(gulagTime);
     gulagSpawnTimer = .45;
     gulagAttackCount = 0;
@@ -1185,6 +1190,7 @@
     pacman.duckHeld = false;
     bossPanel.hidden = true;
     gulagHud.hidden = false;
+    gulagHud.classList.add("gulag-intro");
     gulagTitle.textContent = nightmareUnlocked
       ? "JUICIO FINAL · FASE EXTRA"
       : `EL GULAG · CAÍDA ${gulagDeaths}`;
@@ -1193,6 +1199,15 @@
       : window.matchMedia("(pointer: coarse)").matches
         ? "USA EL JOYSTICK O W A S D PARA ESQUIVAR."
         : "MUÉVETE CON W A S D O LAS FLECHAS";
+    gulagTimerEl.textContent = `COMIENZA EN ${Math.ceil(gulagIntroTime)}`;
+  }
+
+  function updateGulagIntro(dt) {
+    gulagIntroTime = Math.max(0, gulagIntroTime - dt);
+    gulagTimerEl.textContent = `COMIENZA EN ${Math.ceil(gulagIntroTime)}`;
+    if (gulagIntroTime > 0) return;
+    state = "gulag";
+    gulagHud.classList.remove("gulag-intro");
     gulagTimerEl.textContent = `SOBREVIVE ${gulagDisplayedSecond} s`;
     setGulagControls(true);
   }
@@ -1202,6 +1217,7 @@
     lives = 1;
     gulagLifeActive = true;
     gulagHud.hidden = true;
+    gulagHud.classList.remove("gulag-intro");
     movementKeys.clear();
     obstacles = [];
     pacman.x = boss.active ? pacman.x : 115;
@@ -1407,13 +1423,13 @@
   }
 
   function gameLoop(timestamp) {
-    if (state !== "running" && state !== "falling" && state !== "gulag") return;
+    if (state !== "running" && state !== "falling" && state !== "gulagIntro" && state !== "gulag") return;
 
     const dt = Math.max(0, Math.min((timestamp - lastTime) / 1000, .05));
     lastTime = timestamp;
     const musicMode = shopOpen
       ? "shop"
-      : state === "gulag" || state === "falling"
+      : state === "gulagIntro" || state === "gulag" || state === "falling"
         ? "gulag"
         : boss.active
           ? "boss"
@@ -1427,7 +1443,13 @@
       fallTimer -= dt;
       if (fallTimer <= 0) startGulag();
       draw();
-      if (state === "falling" || state === "gulag") requestAnimationFrame(gameLoop);
+      if (state === "falling" || state === "gulagIntro" || state === "gulag") requestAnimationFrame(gameLoop);
+      return;
+    }
+    if (state === "gulagIntro") {
+      updateGulagIntro(dt);
+      drawGulag();
+      if (state === "gulagIntro" || state === "gulag") requestAnimationFrame(gameLoop);
       return;
     }
     if (state === "gulag") {
@@ -1795,7 +1817,7 @@
   }
 
   function draw() {
-    if (state === "gulag") {
+    if (state === "gulag" || state === "gulagIntro") {
       drawGulag();
       return;
     }
