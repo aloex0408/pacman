@@ -3,6 +3,9 @@
 
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+  const WIDTH = canvas.width;
+  const HEIGHT = canvas.height;
+  let canvasResolutionScale = 1;
   const stage = document.getElementById("gameStage");
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
@@ -42,8 +45,29 @@
   const gulagJoystickBase = gulagJoystick.querySelector(".gulag-joystick-base");
   const gulagJoystickKnob = document.getElementById("gulagJoystickKnob");
 
-  const WIDTH = canvas.width;
-  const HEIGHT = canvas.height;
+  function setCanvasLogicalTransform() {
+    ctx.setTransform(canvasResolutionScale, 0, 0, canvasResolutionScale, 0, 0);
+  }
+
+  function updateCanvasResolution(mobileModeEnabled) {
+    const deviceScale = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvasResolutionScale = mobileModeEnabled ? deviceScale : 1;
+    const pixelWidth = Math.round(WIDTH * canvasResolutionScale);
+    const pixelHeight = Math.round(HEIGHT * canvasResolutionScale);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+    ctx.imageSmoothingEnabled = true;
+    setCanvasLogicalTransform();
+  }
+
+  updateCanvasResolution(window.pacmanSettings.mobileModeEnabled);
+  window.addEventListener("pacman-mobile-mode-change", event => {
+    updateCanvasResolution(event.detail.enabled);
+    draw();
+  });
+
   const skyGradient = ctx.createRadialGradient(WIDTH * .5, HEIGHT * .35, 30, WIDTH * .5, HEIGHT * .35, WIDTH * .7);
   skyGradient.addColorStop(0, "#18143f");
   skyGradient.addColorStop(.48, "#0c1738");
@@ -1973,7 +1997,7 @@
       drawGulag();
       return;
     }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    setCanvasLogicalTransform();
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
     ctx.filter = "none";
@@ -1997,7 +2021,7 @@
   }
 
   function drawGulag() {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    setCanvasLogicalTransform();
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
     ctx.filter = "none";
@@ -2828,7 +2852,7 @@
     const hitFlash = Math.max(0, pacman.blink, damageIntensity * (Math.sin(performance.now() * .045) > 0 ? 1 : .35));
 
     ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    setCanvasLogicalTransform();
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
     ctx.filter = "none";

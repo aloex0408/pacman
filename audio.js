@@ -21,11 +21,16 @@
   jumpAudio.volume = .85;
   const musicToggle = document.getElementById("musicToggle");
   const jumpSoundToggle = document.getElementById("jumpSoundToggle");
+  const mobileModeToggle = document.getElementById("mobileModeToggle");
   const reducedAnimationsToggle = document.getElementById("reducedAnimationsToggle");
   const settingsStatus = document.getElementById("settingsStatus");
   const retryAudioButton = document.getElementById("retryAudioButton");
   let musicEnabled = localStorage.getItem("pacman-rush-music-enabled") !== "false";
   let jumpSoundEnabled = localStorage.getItem("pacman-rush-jump-enabled") !== "false";
+  const savedMobileMode = localStorage.getItem("pacman-rush-mobile-mode");
+  let mobileModeEnabled = savedMobileMode === null
+    ? window.matchMedia("(pointer: coarse)").matches
+    : savedMobileMode === "true";
   let reducedAnimations = localStorage.getItem("pacman-rush-reduced-animations") === "true";
 
   let unlocked = false;
@@ -115,6 +120,15 @@
     }
   }
 
+  function setMobileMode(enabled) {
+    mobileModeEnabled = enabled;
+    localStorage.setItem("pacman-rush-mobile-mode", String(enabled));
+    window.dispatchEvent(new CustomEvent("pacman-mobile-mode-change", {
+      detail: { enabled }
+    }));
+    updateSettingsStatus();
+  }
+
   function retryMusic() {
     unlocked = true;
     musicFailed = false;
@@ -136,6 +150,10 @@
     jumpSoundToggle.checked = jumpSoundEnabled;
     jumpSoundToggle.addEventListener("change", () => setJumpSoundEnabled(jumpSoundToggle.checked));
   }
+  if (mobileModeToggle) {
+    mobileModeToggle.checked = mobileModeEnabled;
+    mobileModeToggle.addEventListener("change", () => setMobileMode(mobileModeToggle.checked));
+  }
   if (reducedAnimationsToggle) {
     reducedAnimationsToggle.checked = reducedAnimations;
     reducedAnimationsToggle.addEventListener("change", () => setReducedAnimations(reducedAnimationsToggle.checked));
@@ -156,7 +174,11 @@
   window.pacmanSettings = {
     setMusicEnabled,
     setJumpSoundEnabled,
+    setMobileMode,
     setReducedAnimations,
+    get mobileModeEnabled() {
+      return mobileModeEnabled;
+    },
     get reducedAnimations() {
       return reducedAnimations;
     }
