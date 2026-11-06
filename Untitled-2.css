@@ -815,7 +815,19 @@ kbd {
 }
 
 .mobile-controls.boss-active {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.mobile-controls.gulag-active {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mobile-controls.shop-active {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mobile-controls.shop-active.shop-open {
+  display: none;
 }
 
 .mobile-controls.gulag-active button {
@@ -829,25 +841,35 @@ kbd {
 }
 
 .mobile-controls button {
-  padding: 15px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 4px;
   background: var(--white);
   border: 0;
   color: var(--ink);
   font-family: "DM Mono", monospace;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .mobile-controls button + button {
   border-left: 2px solid var(--ink);
 }
 
+.mobile-controls button:active {
+  background: var(--lime);
+  transform: translateY(1px);
+}
+
 .mobile-controls span {
   display: block;
   margin-top: 2px;
-  font-size: 8px;
-  letter-spacing: .1em;
+  font-size: clamp(6px, 1.7vw, 8px);
+  letter-spacing: .06em;
 }
 
 footer {
@@ -966,13 +988,24 @@ footer span {
     display: inline;
   }
 
+  .action-prompt {
+    padding: 10px 8px;
+    font-size: clamp(7px, 2.2vw, 10px);
+    letter-spacing: .07em;
+    text-align: center;
+  }
+
   .game-stage {
-    height: 390px;
-    min-height: 390px;
+    height: clamp(270px, 76vw, 390px);
+    min-height: 270px;
   }
 
   .mobile-controls {
     display: grid;
+  }
+
+  .mobile-controls.boss-active button {
+    min-height: 58px;
   }
 
   .shop-items {
@@ -1052,12 +1085,18 @@ footer span {
   }
 
   .game-stage {
-    height: 360px;
-    min-height: 360px;
+    height: clamp(250px, 76vw, 330px);
+    min-height: 250px;
   }
 
   h1 {
     font-size: 47px;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 721px) {
+  .mobile-controls {
+    display: grid;
   }
 }
 

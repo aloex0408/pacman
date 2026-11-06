@@ -35,6 +35,8 @@
   const moveRightButton = document.getElementById("moveRightButton");
   const jumpButton = document.getElementById("jumpButton");
   const duckButton = document.getElementById("duckButton");
+  const shootButton = document.getElementById("shootButton");
+  const interactButton = document.getElementById("interactButton");
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -360,6 +362,7 @@
 
   function openSharkShop() {
     shopOpen = true;
+    mobileControls.classList.add("shop-open");
     window.pacmanAudio.setMode("shop");
     sharkShopPanel.hidden = false;
     shopMessageEl.textContent = coins > 0
@@ -374,9 +377,13 @@
     sharkShopPanel.hidden = true;
     shopVisit = false;
     stage.classList.remove("shop-visit");
-    mobileControls.classList.remove("boss-active");
+    mobileControls.classList.remove("boss-active", "shop-active", "shop-open");
     moveLeftButton.hidden = true;
     moveRightButton.hidden = true;
+    jumpButton.hidden = false;
+    duckButton.hidden = false;
+    shootButton.hidden = true;
+    interactButton.hidden = true;
     movementKeys.clear();
     returningToLane = true;
     pacman.facing = -1;
@@ -395,9 +402,13 @@
     sharkFins = [];
     ammoPickups = [];
     movementKeys.clear();
-    mobileControls.classList.add("boss-active");
+    mobileControls.classList.add("shop-active");
     moveLeftButton.hidden = false;
     moveRightButton.hidden = false;
+    jumpButton.hidden = true;
+    duckButton.hidden = true;
+    shootButton.hidden = true;
+    interactButton.hidden = false;
     spawnTimer = Math.max(spawnTimer, 1);
     sharkShopPanel.hidden = true;
     shopMessageEl.textContent = "Acércate al tiburón y pulsa E.";
@@ -526,6 +537,8 @@
     mobileControls.classList.remove("boss-active", "gulag-active");
     moveLeftButton.hidden = true;
     moveRightButton.hidden = true;
+    shootButton.hidden = true;
+    interactButton.hidden = true;
     bossPanel.hidden = true;
     pacman.hitTimer = 0;
     updateHud();
@@ -598,8 +611,13 @@
     updateAmmoCount();
     mobileControls.classList.remove("boss-active");
     mobileControls.classList.remove("gulag-active");
+    mobileControls.classList.remove("shop-active", "shop-open");
     moveLeftButton.hidden = true;
     moveRightButton.hidden = true;
+    jumpButton.hidden = false;
+    duckButton.hidden = false;
+    shootButton.hidden = true;
+    interactButton.hidden = true;
     pacman.y = GROUND_Y - pacman.height;
     pacman.vy = 0;
     pacman.grounded = true;
@@ -670,9 +688,14 @@
     boss.type = undefeatedBossTypes[Math.floor(Math.random() * undefeatedBossTypes.length)];
     returningToLane = false;
     movementKeys.clear();
+    mobileControls.classList.remove("shop-active", "shop-open");
     mobileControls.classList.add("boss-active");
     moveLeftButton.hidden = false;
     moveRightButton.hidden = false;
+    jumpButton.hidden = false;
+    duckButton.hidden = false;
+    shootButton.hidden = false;
+    interactButton.hidden = true;
     boss.maxHealth = getBossHealth();
     boss.health = boss.maxHealth;
     boss.anger = 0;
@@ -726,9 +749,14 @@
     ammo = 0;
     returningToLane = false;
     movementKeys.clear();
+    mobileControls.classList.remove("shop-active", "shop-open");
     mobileControls.classList.add("boss-active");
     moveLeftButton.hidden = false;
     moveRightButton.hidden = false;
+    jumpButton.hidden = false;
+    duckButton.hidden = false;
+    shootButton.hidden = false;
+    interactButton.hidden = true;
     stage.classList.remove("shop-visit");
     sharkShopPanel.hidden = true;
     shopVisit = false;
@@ -767,6 +795,8 @@
     mobileControls.classList.remove("boss-active");
     moveLeftButton.hidden = true;
     moveRightButton.hidden = true;
+    shootButton.hidden = true;
+    interactButton.hidden = true;
     if (skullBossDefeated) {
       skullBossCleared = true;
       milestoneLabel.textContent = "CALAVERA DERROTADA";
@@ -1180,14 +1210,24 @@
       mobileControls.classList.add("boss-active");
       moveLeftButton.hidden = false;
       moveRightButton.hidden = false;
+      jumpButton.hidden = false;
+      duckButton.hidden = false;
+      shootButton.hidden = true;
+      interactButton.hidden = true;
     } else if (state === "running" && boss.active) {
       mobileControls.classList.add("boss-active");
       moveLeftButton.hidden = false;
       moveRightButton.hidden = false;
+      jumpButton.hidden = false;
+      duckButton.hidden = false;
+      shootButton.hidden = false;
+      interactButton.hidden = true;
     } else {
       mobileControls.classList.remove("boss-active");
       moveLeftButton.hidden = true;
       moveRightButton.hidden = true;
+      shootButton.hidden = true;
+      interactButton.hidden = true;
     }
   }
 
@@ -3153,15 +3193,7 @@
     }
     if (event.code === "KeyE" && state === "running" && shopVisit) {
       event.preventDefault();
-      if (shopOpen) {
-        closeSharkShop();
-      } else if (Math.abs(pacman.x + pacman.width / 2 - shopX) <= 115) {
-        openSharkShop();
-        movementKeys.clear();
-        updateHud();
-      } else {
-        shopMessageEl.textContent = "Acércate al tiburón con A / D para abrir la tienda.";
-      }
+      interactWithShop();
       return;
     }
     if (event.code === "Space" || event.code === "ArrowUp" || event.code === "KeyW") {
@@ -3184,6 +3216,19 @@
     if (event.code === "KeyP") {
       event.preventDefault();
       shootBrain();
+    }
+  }
+
+  function interactWithShop() {
+    if (state !== "running" || !shopVisit) return;
+    if (shopOpen) {
+      closeSharkShop();
+    } else if (Math.abs(pacman.x + pacman.width / 2 - shopX) <= 115) {
+      openSharkShop();
+      movementKeys.clear();
+      updateHud();
+    } else {
+      shopMessageEl.textContent = "Acércate al tiburón con ← / → para abrir la tienda.";
     }
   }
 
@@ -3239,6 +3284,8 @@
   duckButton.addEventListener("pointerup", releaseDuck);
   duckButton.addEventListener("pointercancel", releaseDuck);
   duckButton.addEventListener("lostpointercapture", releaseDuck);
+  shootButton.addEventListener("click", shootBrain);
+  interactButton.addEventListener("click", interactWithShop);
   bindMovementButton(moveLeftButton, "left");
   bindMovementButton(moveRightButton, "right");
   window.addEventListener("keydown", handleKey);
