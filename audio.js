@@ -49,7 +49,7 @@
   function stopTrack() {
     if (!activeTrack) return;
     activeTrack.pause();
-    activeTrack.currentTime = 0;
+    if (activeTrack !== tracks.get("gulag")) activeTrack.currentTime = 0;
     activeTrack = null;
   }
 
