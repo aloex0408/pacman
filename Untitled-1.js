@@ -54,7 +54,7 @@
   const MILESTONE_INTERVAL = 10000;
   const STREAK_STEP_INCREASE = 4000;
   const BOSS_INTERVAL = 100000;
-  const BOSS_UNLOCK_SECONDS = 180;
+  const BOSS_UNLOCK_SECONDS = 60;
   const BOSS_ATTACK_INTERVAL = 6;
   const MAX_LIVES = 3;
   const CHERRIES_FOR_POWERUP = 5;
@@ -459,7 +459,7 @@
       frenzyKills += 1;
       if (frenzyKills >= FRENZY_KILLS_FOR_BOSS) {
         powerTimer = 0;
-        activateBoss(false);
+        activateBoss(false, true);
         milestoneLabel.textContent = "FRENZY COMPLETO";
         milestoneValue.textContent = "¡JEFE!";
         milestoneToast.classList.add("frenzy", "visible");
@@ -656,8 +656,8 @@
     pacman.duckUntil = performance.now() + 900;
   }
 
-  function activateBoss(advanceBossThreshold = true) {
-    if (runElapsed < BOSS_UNLOCK_SECONDS) {
+  function activateBoss(advanceBossThreshold = true, bypassUnlock = false) {
+    if (!bypassUnlock && runElapsed < BOSS_UNLOCK_SECONDS) {
       pendingBoss = true;
       pendingBossAdvancesThreshold = pendingBossAdvancesThreshold || advanceBossThreshold;
       return;
