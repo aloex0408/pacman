@@ -50,7 +50,7 @@
   }
 
   function updateCanvasResolution(mobileModeEnabled) {
-    const deviceScale = Math.min(window.devicePixelRatio || 1, 2.5);
+    const deviceScale = Math.min(window.devicePixelRatio || 1, 2);
     canvasResolutionScale = mobileModeEnabled ? deviceScale : 1;
     const pixelWidth = Math.round(WIDTH * canvasResolutionScale);
     const pixelHeight = Math.round(HEIGHT * canvasResolutionScale);
@@ -2842,14 +2842,23 @@
 
   function drawPacman() {
     const isActive = state === "running";
-    const running = pacman.grounded && isActive ? Math.sin(pacman.runFrame) : 0;
-    const mouth = isActive ? .12 + Math.abs(Math.sin(pacman.runFrame * 1.4)) * .46 : .32;
-    const bounce = pacman.grounded && !pacman.ducking && isActive ? Math.abs(running) * 2 : 0;
+    const stableSprites = window.pacmanSettings.reducedAnimations || window.pacmanSettings.mobileModeEnabled;
+    const running = pacman.grounded && isActive && !stableSprites ? Math.sin(pacman.runFrame) : 0;
+    const mouth = isActive && !stableSprites ? .12 + Math.abs(Math.sin(pacman.runFrame * 1.4)) * .46 : .24;
+    const bounce = pacman.grounded && !pacman.ducking && isActive && !stableSprites
+      ? Math.abs(running) * 2
+      : 0;
     const centerX = pacman.x + pacman.width / 2;
     const centerY = pacman.y + pacman.height / 2 + bounce;
     const damageIntensity = Math.min(1, pacman.hitTimer / .8);
-    const damagePulse = pacman.hitTimer > 0 ? Math.sin(performance.now() * .055) * damageIntensity : 0;
-    const hitFlash = Math.max(0, pacman.blink, damageIntensity * (Math.sin(performance.now() * .045) > 0 ? 1 : .35));
+    const damagePulse = pacman.hitTimer > 0 && !stableSprites
+      ? Math.sin(performance.now() * .055) * damageIntensity
+      : 0;
+    const hitFlash = Math.max(
+      0,
+      pacman.blink,
+      damageIntensity * (stableSprites ? .35 : Math.sin(performance.now() * .045) > 0 ? 1 : .35)
+    );
 
     ctx.save();
     setCanvasLogicalTransform();
@@ -2872,7 +2881,7 @@
     }
 
     ctx.save();
-    if (damageIntensity > 0) {
+    if (damageIntensity > 0 && !stableSprites) {
       ctx.save();
       ctx.rotate(performance.now() * .025);
       ctx.strokeStyle = `rgba(255, 75, 70, ${.8 * damageIntensity})`;
@@ -2887,7 +2896,7 @@
       }
       ctx.restore();
     }
-    ctx.rotate(damageIntensity > 0
+    ctx.rotate(damageIntensity > 0 && !stableSprites
       ? Math.sin(performance.now() * .055) * .38 * damageIntensity + damagePulse * .24
       : 0);
     const bodyGradient = ctx.createRadialGradient(-10, -14, 3, 0, 0, 34);
@@ -2905,7 +2914,7 @@
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    if (hitFlash > 0) {
+    if (hitFlash > 0 && !stableSprites) {
       ctx.fillStyle = "rgba(255,255,255,.55)";
       ctx.beginPath();
       ctx.arc(-2, -6, 21, 0, Math.PI * 2);
@@ -2934,7 +2943,8 @@
     const { width, height, variant } = obstacle;
     const color = variant?.color || colors.coral;
     const glow = variant?.glow || "#ff8b7e";
-    const activeMotion = state === "running" && !window.pacmanSettings.reducedAnimations;
+    const stableSprites = window.pacmanSettings.reducedAnimations || window.pacmanSettings.mobileModeEnabled;
+    const activeMotion = state === "running" && !stableSprites;
     const bob = activeMotion ? Math.sin(performance.now() / 125 + obstacle.x * .035) * 2 : 0;
     const sway = activeMotion ? Math.sin(performance.now() / 230 + obstacle.x * .02) * .035 : 0;
     const gradientKey = `${glow}|${color}|${width}|${height}`;
@@ -2954,7 +2964,7 @@
     ctx.scale(1 + sway * .35, 1 - Math.abs(sway) * .25);
     ctx.translate(-width / 2, -height / 2);
     ctx.shadowColor = color;
-    ctx.shadowBlur = window.pacmanSettings.reducedAnimations ? 0 : 16;
+    ctx.shadowBlur = stableSprites ? 0 : 16;
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.moveTo(width * .08, height * .82);
