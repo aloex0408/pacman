@@ -23,13 +23,13 @@
   const milestoneValue = document.getElementById("milestoneValue");
   const bossPanel = document.getElementById("bossPanel");
   const bossName = document.getElementById("bossName");
+  const bossLore = document.getElementById("bossLore");
   const bossStatus = document.getElementById("bossStatus");
   const bossAttackStatus = document.getElementById("bossAttackStatus");
   const bossAttackHint = document.getElementById("bossAttackHint");
   const bossIntroStatus = document.getElementById("bossIntroStatus");
   const gamePauseButton = document.getElementById("gamePauseButton");
   const pausePanel = document.getElementById("pausePanel");
-  const ammoCount = document.getElementById("ammoCount");
   const livesEl = document.getElementById("lives");
   const powerStatusEl = document.getElementById("powerStatus");
   const coinCountEl = document.getElementById("coinCount");
@@ -41,8 +41,8 @@
   const moveLeftButton = document.getElementById("moveLeftButton");
   const moveRightButton = document.getElementById("moveRightButton");
   const jumpButton = document.getElementById("jumpButton");
+  const dashButton = document.getElementById("dashButton");
   const duckButton = document.getElementById("duckButton");
-  const shootButton = document.getElementById("shootButton");
   const interactButton = document.getElementById("interactButton");
   const gulagJoystick = document.getElementById("gulagJoystick");
   const gulagJoystickBase = gulagJoystick.querySelector(".gulag-joystick-base");
@@ -53,12 +53,18 @@
   }
 
   function updateBossAttackCue() {
-    const patterns = [
+    const patterns = boss.type.attackSet === "shadow"
+      ? ["CORTES UMBRÍOS · CAMBIA DE CARRIL", "LÁTIGOS DE SOMBRA · MUÉVETE", "JUICIO ROJO · DASH PARA ESCAPAR"]
+      : boss.type.attackSet === "cosmic"
+        ? ["PULSO ESTELAR · BUSCA UN HUECO", "ÓRBITAS VIOLETAS · CRUZA EL PATRÓN", "LLUVIA CÓSMICA · NO TE DETENGAS"]
+        : boss.type.attackSet === "blackHole"
+          ? ["MAREA GRAVITATORIA · ALÉJATE", "ANILLO DE EVENTOS · ROMPE LA ÓRBITA", "COLAPSO · DASH AL CARRIL SEGURO"]
+          : [
       "RÁFAGA DE HUESOS · CAMBIA DE ALTURA",
       "LLUVIA DE HUESOS · BUSCA UN HUECO",
       "RAYOS · QUEDA UN CARRIL SEGURO",
       "HUESOS TELEDIRIGIDOS · MANTENTE EN MOVIMIENTO"
-    ];
+          ];
     setTextIfChanged(bossAttackHint, `SIGUIENTE: ${patterns[skullAttackCount % patterns.length]}`);
   }
 
@@ -105,13 +111,14 @@
   const STREAK_STEP_INCREASE = 4000;
   const BOSS_INTERVAL = 100000;
   const BOSS_UNLOCK_SECONDS = 60;
-  const BOSS_ATTACK_INTERVAL = 6;
   const PACMAN_WIDTH = 68;
   const PACMAN_HEIGHT = 66;
   const BOSS_PACMAN_SCALE = .8;
   const GULAG_INTRO_DURATION = 3;
   const BOSS_CONTROL_INTRO_DURATION = 3;
-  const MAX_LIVES = 3;
+  const DASH_DURATION = .28;
+  const DASH_COOLDOWN = 1.8;
+  const MAX_LIVES = 4;
   const CHERRIES_FOR_POWERUP = 5;
   const POWERUP_DURATION = 5;
   const FRENZY_KILLS_FOR_BOSS = 10;
@@ -139,9 +146,13 @@
   let streakStartScore = 0;
   let nextBossScore = BOSS_INTERVAL;
   let bossObstacleTimer = 0;
-  let ammoSpawnTimer = 0;
+  let bossNextAttackAt = 0;
+  let bossMusicError = false;
   let returningToLane = false;
   let bossesDefeated = 0;
+  let dashTimer = 0;
+  let dashCooldown = 0;
+  let dashDirection = { x: 0, y: 0 };
   let gulagDeaths = 0;
   let skullBossCleared = false;
   let gulagLifeActive = false;
@@ -173,7 +184,7 @@
   let shopX = 650;
   let scoreBoostLevel = 0;
   let bossSpeedLevel = 0;
-  let weaponLevel = 0;
+  let dashLevel = 0;
   const movementKeys = new Set();
   let particles = [];
   let obstacles = [];
@@ -188,7 +199,8 @@
     primary: "#e7d8c6",
     secondary: "#38212c",
     accent: "#ff244b",
-    attackLabel: "PATRÓN ÓSEO"
+    attackLabel: "PATRÓN ÓSEO",
+    musicMode: "bossSkull"
   };
   const planets = [
     { x: 205, y: 100, radius: 48, color: "#7c5cff", ring: true },
@@ -203,18 +215,24 @@
     { name: "Clyde", color: "#ffd43b", glow: "#ffe98c" }
   ];
 
-  const bossTypes = [
-    { name: "ALIENÍGENA", primary: "#7c5cff", secondary: "#542fb0", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO" },
-    { name: "TITÁN ROBÓTICO", primary: "#46d7ff", secondary: "#126b9b", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO" },
-    { name: "REINA METEORO", primary: "#ff5f54", secondary: "#9d2e55", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO" },
-    { name: "MEDUSA CÓSMICA", primary: "#46d7ff", secondary: "#24687b", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO" },
-    { name: "CALAVERA ESTELAR", primary: "#f4e7cf", secondary: "#8b6e78", accent: "#ff5f54", attackLabel: "PATRÓN ÓSEO" },
-    { name: "POLILLA LUNAR", primary: "#ff8cc4", secondary: "#7c3f9d", accent: "#46d7ff", attackLabel: "PATRÓN ÓSEO" },
-    { name: "CRISTAL VORAZ", primary: "#46d7ff", secondary: "#3151a4", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO" },
-    { name: "DRAGÓN DE NEBULOSA", primary: "#ff5f54", secondary: "#762e52", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO" },
-    { name: "CÍCLOPE SOLAR", primary: "#ffd43b", secondary: "#b6542b", accent: "#ff5f54", attackLabel: "PATRÓN ÓSEO" },
-    { name: "ESPECTRO GALÁCTICO", primary: "#7c5cff", secondary: "#29205f", accent: "#46d7ff", attackLabel: "PATRÓN ÓSEO" }
+  const legacyBossTypes = [
+    { name: "ALIENÍGENA", primary: "#7c5cff", secondary: "#542fb0", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "TITÁN ROBÓTICO", primary: "#46d7ff", secondary: "#126b9b", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "REINA METEORO", primary: "#ff5f54", secondary: "#9d2e55", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "MEDUSA CÓSMICA", primary: "#46d7ff", secondary: "#24687b", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "CALAVERA ESTELAR", primary: "#f4e7cf", secondary: "#8b6e78", accent: "#ff5f54", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "POLILLA LUNAR", primary: "#ff8cc4", secondary: "#7c3f9d", accent: "#46d7ff", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "CRISTAL VORAZ", primary: "#46d7ff", secondary: "#3151a4", accent: "#c8ff3d", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "DRAGÓN DE NEBULOSA", primary: "#ff5f54", secondary: "#762e52", accent: "#ffd43b", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "CÍCLOPE SOLAR", primary: "#ffd43b", secondary: "#b6542b", accent: "#ff5f54", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" },
+    { name: "ESPECTRO GALÁCTICO", primary: "#7c5cff", secondary: "#29205f", accent: "#46d7ff", attackLabel: "PATRÓN ÓSEO", musicMode: "boss" }
   ];
+  const loreBossTypes = [
+    { name: "CABALLERO DEL ECLIPSE", primary: "#293044", secondary: "#10121b", accent: "#ff3b55", attackLabel: "JUICIO UMBRÍO", attackSet: "shadow", musicMode: "bossEclipse", lore: "Guardián de una estrella muerta; su juramento convierte la luz en filo." },
+    { name: "ARCONTE VIOLETA", primary: "#a66bff", secondary: "#442078", accent: "#f0d7ff", attackLabel: "PULSO ESTELAR", attackSet: "cosmic", musicMode: "bossCosmic", lore: "Conciencia nacida entre galaxias; cada latido pliega el espacio." },
+    { name: "SINGULARIDAD · ABISMO FINAL", primary: "#3b1a0b", secondary: "#080606", accent: "#ff6a00", attackLabel: "COLAPSO", attackSet: "blackHole", musicMode: "bossBlackHole", lore: "El universo reducido a un núcleo voraz: cuando despierta, hasta las estrellas caen." }
+  ];
+  const bossTypes = [...legacyBossTypes, ...loreBossTypes];
   let undefeatedBossTypes = [...bossTypes];
 
   const boss = {
@@ -298,7 +316,7 @@
             ? "PULSA E PARA ABRIR LA TIENDA DEL TIBURÓN"
             : "ACÉRCATE AL TIBURÓN CON A / D"
           : boss.active
-            ? "COMBATE DE JEFE · VUELA PARA ESQUIVAR · RECOGE BALAS Y DISPARA"
+            ? "COMBATE DE JEFE · SOBREVIVE ESQUIVANDO · SHIFT PARA DASH"
             : pendingBoss
               ? `JEFE EN ESPERA · DESBLOQUEO EN ${Math.ceil(Math.max(0, BOSS_UNLOCK_SECONDS - runElapsed))}s`
               : powerTimer > 0
@@ -311,6 +329,13 @@
     jumpButton.querySelector("span").textContent = boss.active ? "ARRIBA" : "SALTAR";
     duckButton.setAttribute("aria-label", boss.active ? "Volar hacia abajo" : "Agacharse");
     duckButton.querySelector("span").textContent = boss.active ? "ABAJO" : "AGÁCHATE";
+    dashButton.setAttribute("aria-label", dashCooldown > 0
+      ? `Dash en ${dashCooldown.toFixed(1)} segundos`
+      : "Dash disponible");
+    dashButton.querySelector("span").textContent = dashCooldown > 0
+      ? `${dashCooldown.toFixed(1)}s`
+      : "DASH";
+    dashButton.classList.toggle("dash-cooldown", dashCooldown > 0);
   }
 
   function setTextIfChanged(element, text) {
@@ -333,19 +358,18 @@
     if (item === "score") return 12 * 2 ** scoreBoostLevel;
     if (item === "boss-speed") return 12 + bossSpeedLevel * 8;
     if (item === "life") return 16;
-    return 16 + weaponLevel * 12;
+    return 16 + dashLevel * 12;
   }
 
-  function getBossAttackInterval() {
-    if (bossesDefeated === 0) return BOSS_ATTACK_INTERVAL;
-    if (bossesDefeated === 1) return 8.5;
-    return Math.max(5.5, 7.5 - (bossesDefeated - 2) * .35);
-  }
-
-  function getBossHealth() {
-    if (bossesDefeated === 0) return 10;
-    if (bossesDefeated === 1) return 8;
-    return Math.min(18, 10 + Math.floor((bossesDefeated - 2) / 2));
+  function getNextBossType() {
+    const loreBossIndex = Math.floor(bossesDefeated / 3) - 1;
+    const shouldSpawnLoreBoss = bossesDefeated > 0 &&
+      bossesDefeated % 3 === 0 &&
+      loreBossIndex < loreBossTypes.length;
+    if (shouldSpawnLoreBoss) return loreBossTypes[loreBossIndex];
+    const availableBosses = undefeatedBossTypes.filter(type => legacyBossTypes.includes(type));
+    if (availableBosses.length === 0) return undefeatedBossTypes[0];
+    return availableBosses[Math.floor(Math.random() * availableBosses.length)];
   }
 
   function getNextBossScore(currentScore) {
@@ -370,7 +394,7 @@
         titleEl.textContent = "Vida extra";
         descriptionEl.textContent = maxed
           ? "Ya tienes todas tus vidas."
-          : "Recupera 1 vida (máximo 3).";
+          : `Recupera 1 vida (máximo ${MAX_LIVES}).`;
       } else if (item === "score") {
         maxed = scoreBoostLevel >= 4;
         titleEl.textContent = "Racha x2";
@@ -384,14 +408,14 @@
           ? "Velocidad máxima alcanzada en los jefes."
           : `+25% de movimiento contra jefes (nivel ${bossSpeedLevel + 1}/3).`;
       } else {
-        maxed = weaponLevel >= 3;
-        titleEl.textContent = ["Rayo sónico", "Bomba fotónica", "Triple plasma"][Math.min(weaponLevel, 2)];
+        maxed = dashLevel >= 3;
+        titleEl.textContent = ["Impulso rápido", "Dash espectral", "Dash relámpago"][Math.min(dashLevel, 2)];
         descriptionEl.textContent = [
-          "Desbloquea un rayo sónico que hace 2 de daño.",
-          "La bomba fotónica hace 3 de daño por disparo.",
-          "El triple plasma lanza 3 rayos de 2 de daño.",
-          "Triple plasma al máximo: 6 de daño por disparo."
-        ][weaponLevel];
+          "Reduce la recarga del dash.",
+          "Aumenta la duración y reduce la recarga.",
+          "Dash más largo con recarga mínima.",
+          "Dash al máximo."
+        ][dashLevel];
       }
 
       const cost = getShopItemCost(item);
@@ -413,14 +437,14 @@
       return;
     }
 
-    const level = item === "score" ? scoreBoostLevel : item === "boss-speed" ? bossSpeedLevel : weaponLevel;
+    const level = item === "score" ? scoreBoostLevel : item === "boss-speed" ? bossSpeedLevel : dashLevel;
     const maxLevel = item === "score" ? 4 : 3;
     if (level >= maxLevel || coins < cost) return;
 
     coins -= cost;
     if (item === "score") scoreBoostLevel += 1;
     else if (item === "boss-speed") bossSpeedLevel += 1;
-    else weaponLevel += 1;
+    else dashLevel += 1;
 
     shopMessageEl.textContent = "¡Mejora comprada! Puedes comprar otra o continuar.";
     updateShopInterface();
@@ -449,7 +473,7 @@
     moveRightButton.hidden = true;
     jumpButton.hidden = false;
     duckButton.hidden = false;
-    shootButton.hidden = true;
+    dashButton.hidden = true;
     interactButton.hidden = true;
     movementKeys.clear();
     returningToLane = true;
@@ -474,7 +498,7 @@
     moveRightButton.hidden = false;
     jumpButton.hidden = true;
     duckButton.hidden = true;
-    shootButton.hidden = true;
+    dashButton.hidden = true;
     interactButton.hidden = false;
     spawnTimer = Math.max(spawnTimer, 1);
     sharkShopPanel.hidden = true;
@@ -520,7 +544,7 @@
   }
 
   function handlePlayerHit(obstacle) {
-    if (state !== "running" || pacman.hitTimer > 0) return;
+    if (state !== "running" || pacman.hitTimer > 0 || dashTimer > 0) return;
     if (powerTimer > 0 && (obstacle.type === "ghost" || obstacle.type === "ship")) {
       const index = obstacles.indexOf(obstacle);
       if (index >= 0) obstacles.splice(index, 1);
@@ -579,12 +603,16 @@
     toastTimer = 1.1;
 
     if (!lostGulagLife && lives > 0) {
-      pacman.x = 115;
-      pacman.y = GROUND_Y - pacman.height;
+      if (boss.active) {
+        pacman.x = (WIDTH - pacman.width) / 2;
+        pacman.y = (55 + GROUND_Y - pacman.height) / 2;
+        pacman.facing = 1;
+      } else {
+        pacman.y = GROUND_Y - pacman.height;
+      }
       pacman.vy = 0;
-      pacman.grounded = true;
-      pacman.facing = 1;
-      returningToLane = !boss.active;
+      pacman.grounded = !boss.active;
+      returningToLane = false;
       obstacles = obstacles.filter(item => item.x > pacman.x + 180);
       updateHud();
       return;
@@ -607,10 +635,11 @@
     moveRightButton.hidden = true;
     jumpButton.hidden = true;
     duckButton.hidden = true;
-    shootButton.hidden = true;
+    dashButton.hidden = true;
     interactButton.hidden = true;
     bossPanel.hidden = true;
     bossIntroStatus.hidden = true;
+    bossLore.hidden = true;
     pacman.hitTimer = 0;
     updateHud();
   }
@@ -629,6 +658,8 @@
     finSpawnTimer = 4 + Math.random() * 3;
     nextBossScore = BOSS_INTERVAL;
     bossObstacleTimer = 0;
+    bossNextAttackAt = 0;
+    bossMusicError = false;
     spawnTimer = 1.15;
     obstacles = [];
     cherries = [];
@@ -650,7 +681,7 @@
     shopOpen = false;
     scoreBoostLevel = 0;
     bossSpeedLevel = 0;
-    weaponLevel = 0;
+    dashLevel = 0;
     bossesDefeated = 0;
     gulagDeaths = 0;
     skullBossCleared = false;
@@ -671,11 +702,11 @@
     bossJoystickEnabled = false;
     setBossPacmanSize(false);
     boss.type = bossTypes[0];
-    boss.maxHealth = 10;
-    boss.health = boss.maxHealth;
     boss.anger = 0;
     boss.shake = 0;
     boss.time = 0;
+    dashTimer = 0;
+    dashCooldown = 0;
     returningToLane = false;
     pacman.x = 115;
     pacman.facing = 1;
@@ -685,7 +716,6 @@
     gulagHud.hidden = true;
     gulagHud.classList.remove("gulag-intro");
     sharkShopPanel.hidden = true;
-    updateAmmoCount();
     mobileControls.classList.remove("boss-active");
     mobileControls.classList.remove("boss-joystick-active");
     mobileControls.classList.remove("gulag-active");
@@ -696,7 +726,7 @@
     moveRightButton.hidden = true;
     jumpButton.hidden = false;
     duckButton.hidden = false;
-    shootButton.hidden = true;
+    dashButton.hidden = true;
     interactButton.hidden = true;
     pacman.y = GROUND_Y - pacman.height;
     pacman.vy = 0;
@@ -791,6 +821,32 @@
     pacman.duckUntil = performance.now() + 900;
   }
 
+  function dash() {
+    if (state !== "running" || !boss.active || dashCooldown > 0 || shopOpen) return;
+    let horizontal = (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0);
+    let vertical = (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0);
+    horizontal += bossJoystickVector.x;
+    vertical += bossJoystickVector.y;
+    const magnitude = Math.hypot(horizontal, vertical);
+    if (magnitude > 0) {
+      horizontal /= magnitude;
+      vertical /= magnitude;
+    } else {
+      horizontal = pacman.facing || 1;
+    }
+    dashDirection.x = horizontal;
+    dashDirection.y = vertical;
+    dashTimer = DASH_DURATION + dashLevel * .05;
+    dashCooldown = Math.max(.75, DASH_COOLDOWN - dashLevel * .3);
+    createBurst(
+      pacman.x + pacman.width / 2,
+      pacman.y + pacman.height / 2,
+      "#9af4ff",
+      18
+    );
+    updateHud();
+  }
+
   function activateBoss(advanceBossThreshold = true, bypassUnlock = false) {
     if (!bypassUnlock && runElapsed < BOSS_UNLOCK_SECONDS) {
       pendingBoss = true;
@@ -807,7 +863,11 @@
     bossJoystickEnabled = false;
     setBossJoystickControls(false);
     skullAttackCount = 0;
-    boss.type = undefeatedBossTypes[Math.floor(Math.random() * undefeatedBossTypes.length)];
+    boss.type = getNextBossType();
+    bossMusicError = false;
+    window.pacmanAudio.startBossTrack(boss.type.musicMode);
+    bossNextAttackAt = window.pacmanAudio.getNextBossAttackTime();
+    bossObstacleTimer = bossNextAttackAt;
     returningToLane = false;
     movementKeys.clear();
     mobileControls.classList.remove("shop-active", "shop-open");
@@ -816,10 +876,9 @@
     moveRightButton.hidden = false;
     jumpButton.hidden = false;
     duckButton.hidden = false;
-    shootButton.hidden = false;
+    dashButton.hidden = false;
     interactButton.hidden = true;
-    boss.maxHealth = getBossHealth();
-    boss.health = boss.maxHealth;
+    boss.gravityTimer = 0;
     boss.anger = 0;
     boss.shake = 0;
     boss.time = 0;
@@ -829,8 +888,6 @@
     pacman.ducking = false;
     pacman.duckHeld = false;
     if (advanceBossThreshold) nextBossScore = getNextBossScore(nextBossScore);
-    bossObstacleTimer = getBossAttackInterval();
-    ammoSpawnTimer = bossesDefeated === 0 ? 1 : .8;
     cherrySpawnTimer = 4 + Math.random() * 4;
     ammo = 0;
     frenzyKills = 0;
@@ -840,12 +897,13 @@
     sharkShopPanel.hidden = true;
     bossPanel.hidden = false;
     bossName.textContent = boss.type.name;
-    bossStatus.textContent = `SALUD: ${boss.maxHealth}`;
+    bossLore.textContent = boss.type.lore || "";
+    bossLore.hidden = !boss.type.lore;
+    bossStatus.textContent = "ESQUIVA HASTA QUE TERMINE LA CANCIÓN";
     updateBossAttackCue();
     updateBossAttackCountdown();
     bossIntroStatus.hidden = false;
     bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
-    updateAmmoCount();
     brainProjectiles = [];
     weaponImpacts = [];
     ammoPickups = [];
@@ -862,8 +920,11 @@
     bossJoystickEnabled = false;
     setBossJoystickControls(false);
     boss.type = skullBossType;
-    boss.maxHealth = 20;
-    boss.health = boss.maxHealth;
+    bossMusicError = false;
+    window.pacmanAudio.startBossTrack(boss.type.musicMode);
+    bossNextAttackAt = window.pacmanAudio.getNextBossAttackTime();
+    bossObstacleTimer = bossNextAttackAt;
+    boss.gravityTimer = 0;
     boss.anger = 0;
     boss.shake = 0;
     boss.time = 0;
@@ -873,8 +934,6 @@
     pacman.ducking = false;
     pacman.duckHeld = false;
     skullAttackCount = 0;
-    bossObstacleTimer = 3;
-    ammoSpawnTimer = .7;
     ammo = 0;
     returningToLane = false;
     movementKeys.clear();
@@ -884,7 +943,7 @@
     moveRightButton.hidden = false;
     jumpButton.hidden = false;
     duckButton.hidden = false;
-    shootButton.hidden = false;
+    dashButton.hidden = false;
     interactButton.hidden = true;
     stage.classList.remove("shop-visit");
     sharkShopPanel.hidden = true;
@@ -896,12 +955,13 @@
     obstacles = [];
     bossPanel.hidden = false;
     bossName.textContent = boss.type.name;
-    bossStatus.textContent = `SALUD: ${boss.maxHealth}`;
+    bossLore.textContent = "";
+    bossLore.hidden = true;
+    bossStatus.textContent = "ESQUIVA HASTA QUE TERMINE LA CANCIÓN";
     updateBossAttackCue();
     updateBossAttackCountdown();
     bossIntroStatus.hidden = false;
     bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
-    updateAmmoCount();
     createBurst(boss.x + boss.width / 2, boss.y + boss.height / 2, boss.type.accent, 48);
     milestoneLabel.textContent = "JUICIO DESBLOQUEADO";
     milestoneValue.textContent = "¡JEFE SECRETO!";
@@ -932,7 +992,7 @@
     mobileControls.classList.remove("boss-active");
     moveLeftButton.hidden = true;
     moveRightButton.hidden = true;
-    shootButton.hidden = true;
+    dashButton.hidden = true;
     interactButton.hidden = true;
     if (skullBossDefeated) {
       skullBossCleared = true;
@@ -942,6 +1002,7 @@
       bossesDefeated += 1;
       undefeatedBossTypes = undefeatedBossTypes.filter(type => type !== boss.type);
       milestoneValue.textContent = "JEFE DERROTADO";
+      finSpawnTimer = 5 + Math.random() * 3 + bossesDefeated * 1.25;
       if (bossesDefeated === bossTypes.length) {
         state = "victory";
         syncPauseControls();
@@ -960,37 +1021,8 @@
     brainProjectiles = [];
     ammoPickups = [];
     ammo = 0;
-    updateAmmoCount();
     obstacles = [];
     createBurst(boss.x + boss.width / 2, boss.y + boss.height / 2, colors.cyan, 40);
-  }
-
-  function shootBrain() {
-    if (!boss.active || state !== "running" || ammo === 0) return;
-    const direction = pacman.x + pacman.width / 2 < boss.x + boss.width / 2 ? 1 : -1;
-    const shots = weaponLevel === 3
-      ? [-14, 0, 14].map(yOffset => ({ yOffset, damage: 2 }))
-      : [{ yOffset: 0, damage: [1, 2, 3][weaponLevel] }];
-    for (const shot of shots) {
-      brainProjectiles.push({
-        x: direction > 0 ? pacman.x + pacman.width : pacman.x,
-        y: boss.y + 65 + shot.yOffset,
-        vx: 900 * direction,
-        radius: 7 + shot.damage,
-        damage: shot.damage,
-        weaponLevel,
-        time: 0,
-        life: 2.5
-      });
-    }
-    ammo -= 1;
-    updateAmmoCount();
-    boss.anger = 1;
-    bossStatus.textContent = `SALUD: ${boss.health}`;
-  }
-
-  function updateAmmoCount() {
-    ammoCount.textContent = `BALAS: ${ammo}`;
   }
 
   function spawnBossHazard(x, y, width, height, style, vy = 0, bobAmplitude = 0, phase = 0) {
@@ -1028,63 +1060,209 @@
     const startX = boss.x + boss.width / 2;
     const groundY = GROUND_Y;
     skullAttackCount += 1;
-    const enraged = boss.health <= boss.maxHealth / 2;
+    const musicDuration = window.pacmanAudio.getCurrentTrackDuration();
+    const enraged = Number.isFinite(musicDuration) &&
+      musicDuration > 0 &&
+      window.pacmanAudio.getCurrentTrackTime() >= musicDuration * .6;
     const speedMultiplier = enraged ? 1.25 : 1;
-    const pattern = (skullAttackCount - 1) % 4;
+    const pattern = (skullAttackCount - 1) % 3;
 
-    if (pattern === 0) {
-      const originX = boss.x + 25;
-      const originY = boss.y + 155;
-      const targetX = pacman.x + pacman.width / 2;
-      const targetY = pacman.y + pacman.height / 2;
-      const count = enraged ? 7 : 5;
-      const baseAngle = Math.atan2(targetY - originY, targetX - originX);
-      for (let index = 0; index < count; index += 1) {
-        const angle = baseAngle + (index - (count - 1) / 2) * (enraged ? .2 : .27);
-        const projectileSpeed = 260 * speedMultiplier;
-        spawnBossHazard(
-          originX,
-          originY,
-          28,
-          20,
-          "bone",
-          Math.sin(angle) * projectileSpeed
-        );
-        makeBossHazardHome(obstacles[obstacles.length - 1], projectileSpeed, .55);
+    if (boss.type.attackSet === "shadow") {
+      if (pattern === 0) {
+        for (let lane = 0; lane < 3; lane += 1) {
+          const hazard = obstacles[obstacles.push({
+            type: "bossObstacle",
+            bossStyle: "shadow",
+            x: WIDTH + 20,
+            y: 145 + lane * 75,
+            width: 34,
+            height: 24,
+            bossVx: -330 * speedMultiplier,
+            vy: lane === 1 ? 0 : (lane === 0 ? 70 : -70),
+            life: 3.2,
+            telegraph: .45,
+            passed: false
+          }) - 1];
+          makeBossHazardHome(hazard, 330 * speedMultiplier, .45);
+        }
+      } else if (pattern === 1) {
+        for (const x of [365, 595]) {
+          spawnBossHazard(x, 105, 38, groundY - 105, "skullBeam");
+          obstacles[obstacles.length - 1].telegraph = .95;
+        }
+      } else {
+        for (const angleOffset of [-.38, -.19, 0, .19, .38]) {
+          const originX = boss.x + 25;
+          const originY = boss.y + 155;
+          const targetAngle = Math.atan2(
+            pacman.y + pacman.height / 2 - originY,
+            pacman.x + pacman.width / 2 - originX
+          ) + angleOffset;
+          const hazard = obstacles[obstacles.push({
+            type: "bossObstacle",
+            bossStyle: "shadow",
+            x: originX,
+            y: originY,
+            width: 30,
+            height: 22,
+            bossVx: Math.cos(targetAngle) * 295 * speedMultiplier,
+            vy: Math.sin(targetAngle) * 295 * speedMultiplier,
+            life: 3,
+            telegraph: .5,
+            passed: false
+          }) - 1];
+          hazard.bossHoming = true;
+          hazard.bossHomingSpeed = 295 * speedMultiplier;
+        }
       }
-    } else if (pattern === 1) {
-      const count = enraged ? 9 : 7;
-      const spacing = WIDTH / count;
-      const safeLane = Math.max(0, Math.min(
-        count - 1,
-        Math.floor((pacman.x + pacman.width / 2) / spacing)
-      ));
-      for (let index = 0; index < count; index += 1) {
-        if (index === safeLane) continue;
-        const y = index % 2 === 0 ? -30 : -95;
-        spawnBossHazard(index * spacing + spacing / 2, y, 26, 26, "bone");
-        makeBossHazardHome(obstacles[obstacles.length - 1], 245 * speedMultiplier, .65);
+    } else if (boss.type.attackSet === "cosmic") {
+      if (pattern === 0 || pattern === 2) {
+        const count = pattern === 0 ? 10 : 14;
+        const phase = pattern === 0 ? 0 : Math.PI / count;
+        for (let index = 0; index < count; index += 1) {
+          const angle = index * Math.PI * 2 / count + phase;
+          const hazard = obstacles[obstacles.push({
+            type: "bossObstacle",
+            bossStyle: "cosmic",
+            x: startX,
+            y: boss.y + 170,
+            width: 24,
+            height: 24,
+            bossVx: Math.cos(angle) * 230 * speedMultiplier,
+            vy: Math.sin(angle) * 230 * speedMultiplier,
+            life: 3.4,
+            telegraph: .55,
+            passed: false
+          }) - 1];
+          hazard.angle = angle;
+        }
+      } else {
+        const safeLane = Math.max(1, Math.min(7, Math.floor(
+          (pacman.x + pacman.width / 2) / (WIDTH / 8)
+        )));
+        for (let lane = 0; lane < 8; lane += 1) {
+          if (lane === safeLane) continue;
+          const hazard = obstacles[obstacles.push({
+            type: "bossObstacle",
+            bossStyle: "cosmic",
+            x: lane * WIDTH / 8 + WIDTH / 16,
+            y: -25,
+            width: 25,
+            height: 25,
+            bossVx: 0,
+            vy: 245 * speedMultiplier,
+            life: 3.5,
+            telegraph: .7,
+            passed: false
+          }) - 1];
+          hazard.angle = Math.PI / 2;
+        }
       }
-    } else if (pattern === 2) {
-      const count = enraged ? 4 : 3;
-      const laneWidth = WIDTH / (count + 1);
-      const safeLane = Math.max(0, Math.min(
-        count,
-        Math.round((pacman.x + pacman.width / 2) / laneWidth)
-      ));
-      for (let lane = 0; lane <= count; lane += 1) {
-        if (lane === safeLane) continue;
-        spawnBossHazard(lane * laneWidth, 120, 32, groundY - 120, "skullBeam");
+    } else if (boss.type.attackSet === "blackHole") {
+      if (pattern === 0) {
+        boss.gravityTimer = 2.4;
+        for (let index = 0; index < 12; index += 1) {
+          const angle = index * Math.PI / 6;
+          const hazard = obstacles[obstacles.push({
+            type: "bossObstacle",
+            bossStyle: "blackHole",
+            x: startX,
+            y: boss.y + 165,
+            width: 34,
+            height: 34,
+            bossVx: Math.cos(angle) * 205 * speedMultiplier,
+            vy: Math.sin(angle) * 205 * speedMultiplier,
+            life: 3.6,
+            telegraph: .65,
+            passed: false
+          }) - 1];
+          hazard.angle = angle;
+        }
+      } else if (pattern === 1) {
+        const targetLane = Math.max(0, Math.min(7, Math.floor(
+          (pacman.x + pacman.width / 2) / (WIDTH / 8)
+        )));
+        for (let lane = 0; lane < 8; lane += 1) {
+          if (Math.abs(lane - targetLane) <= 1) continue;
+          spawnBossHazard(lane * WIDTH / 8, 118, 34, groundY - 118, "skullBeam");
+          obstacles[obstacles.length - 1].telegraph = 1.05;
+        }
+      } else {
+        for (let index = 0; index < 9; index += 1) {
+          const angle = index * Math.PI * 2 / 9;
+          const hazard = obstacles[obstacles.push({
+            type: "bossObstacle",
+            bossStyle: "blackHole",
+            x: startX + Math.cos(angle) * 88,
+            y: boss.y + 165 + Math.sin(angle) * 88,
+            width: 28,
+            height: 28,
+            bossVx: -Math.cos(angle) * 255 * speedMultiplier,
+            vy: -Math.sin(angle) * 255 * speedMultiplier,
+            life: 3.2,
+            telegraph: .7,
+            passed: false
+          }) - 1];
+          hazard.angle = angle + Math.PI;
+        }
       }
     } else {
-      const count = enraged ? 7 : 5;
-      const targetX = pacman.x + pacman.width / 2;
-      for (let index = 0; index < count; index += 1) {
-        const offset = (index - (count - 1) / 2) * 42;
-        const x = Math.max(0, Math.min(WIDTH - 30, targetX + offset));
-        const y = index % 2 === 0 ? groundY - 36 : 105;
-        spawnBossHazard(x, y, 30, 22, "bone");
-        makeBossHazardHome(obstacles[obstacles.length - 1], 220 * speedMultiplier, .8);
+      const standardPattern = (skullAttackCount - 1) % 4;
+
+      if (standardPattern === 0) {
+        const originX = boss.x + 25;
+        const originY = boss.y + 155;
+        const targetX = pacman.x + pacman.width / 2;
+        const targetY = pacman.y + pacman.height / 2;
+        const count = enraged ? 7 : 5;
+        const baseAngle = Math.atan2(targetY - originY, targetX - originX);
+        for (let index = 0; index < count; index += 1) {
+          const angle = baseAngle + (index - (count - 1) / 2) * (enraged ? .2 : .27);
+          const projectileSpeed = 260 * speedMultiplier;
+          spawnBossHazard(
+            originX,
+            originY,
+            28,
+            20,
+            "bone",
+            Math.sin(angle) * projectileSpeed
+          );
+          makeBossHazardHome(obstacles[obstacles.length - 1], projectileSpeed, .55);
+        }
+      } else if (standardPattern === 1) {
+        const count = enraged ? 9 : 7;
+        const spacing = WIDTH / count;
+        const safeLane = Math.max(0, Math.min(
+          count - 1,
+          Math.floor((pacman.x + pacman.width / 2) / spacing)
+        ));
+        for (let index = 0; index < count; index += 1) {
+          if (index === safeLane) continue;
+          const y = index % 2 === 0 ? -30 : -95;
+          spawnBossHazard(index * spacing + spacing / 2, y, 26, 26, "bone");
+          makeBossHazardHome(obstacles[obstacles.length - 1], 245 * speedMultiplier, .65);
+        }
+      } else if (standardPattern === 2) {
+        const count = enraged ? 4 : 3;
+        const laneWidth = WIDTH / (count + 1);
+        const safeLane = Math.max(0, Math.min(
+          count,
+          Math.round((pacman.x + pacman.width / 2) / laneWidth)
+        ));
+        for (let lane = 0; lane <= count; lane += 1) {
+          if (lane === safeLane) continue;
+          spawnBossHazard(lane * laneWidth, 120, 32, groundY - 120, "skullBeam");
+        }
+      } else {
+        const count = enraged ? 7 : 5;
+        const targetX = pacman.x + pacman.width / 2;
+        for (let index = 0; index < count; index += 1) {
+          const offset = (index - (count - 1) / 2) * 42;
+          const x = Math.max(0, Math.min(WIDTH - 30, targetX + offset));
+          const y = index % 2 === 0 ? groundY - 36 : 105;
+          spawnBossHazard(x, y, 30, 22, "bone");
+          makeBossHazardHome(obstacles[obstacles.length - 1], 220 * speedMultiplier, .8);
+        }
       }
     }
 
@@ -1275,13 +1453,13 @@
     mobileControls.classList.toggle("gulag-active", active);
     mobileControls.classList.remove("boss-joystick-active");
     gulagJoystick.hidden = !active;
+    dashButton.hidden = !(!active && state === "running" && boss.active);
     if (active) {
       mobileControls.classList.remove("boss-active");
       moveLeftButton.hidden = true;
       moveRightButton.hidden = true;
       jumpButton.hidden = true;
       duckButton.hidden = true;
-      shootButton.hidden = true;
       interactButton.hidden = true;
       resetGulagJoystick();
     } else if (state === "running" && boss.active && bossJoystickEnabled) {
@@ -1291,7 +1469,6 @@
       moveRightButton.hidden = true;
       jumpButton.hidden = true;
       duckButton.hidden = true;
-      shootButton.hidden = false;
       interactButton.hidden = true;
     } else if (state === "running" && boss.active) {
       mobileControls.classList.add("boss-active");
@@ -1299,7 +1476,6 @@
       moveRightButton.hidden = false;
       jumpButton.hidden = false;
       duckButton.hidden = false;
-      shootButton.hidden = false;
       interactButton.hidden = true;
     } else {
       mobileControls.classList.remove("boss-active");
@@ -1307,7 +1483,6 @@
       moveRightButton.hidden = true;
       jumpButton.hidden = false;
       duckButton.hidden = false;
-      shootButton.hidden = true;
       interactButton.hidden = true;
     }
   }
@@ -1320,7 +1495,7 @@
     moveRightButton.hidden = active;
     jumpButton.hidden = active;
     duckButton.hidden = active;
-    shootButton.hidden = false;
+    dashButton.hidden = false;
     interactButton.hidden = true;
     resetGulagJoystick();
   }
@@ -1401,14 +1576,16 @@
     gulagHud.classList.remove("gulag-intro");
     movementKeys.clear();
     obstacles = [];
-    pacman.x = boss.active ? pacman.x : 115;
-    pacman.y = GROUND_Y - pacman.height;
+    pacman.x = (WIDTH - pacman.width) / 2;
+    pacman.y = boss.active
+      ? (55 + GROUND_Y - pacman.height) / 2
+      : GROUND_Y - pacman.height;
     pacman.vy = 0;
     pacman.grounded = true;
     pacman.ducking = false;
     pacman.duckHeld = false;
     pacman.hitTimer = 1;
-    returningToLane = !boss.active;
+    returningToLane = false;
     bossPanel.hidden = !boss.active;
     setGulagControls(false);
     updateHud();
@@ -1547,6 +1724,7 @@
   }
 
   function updateGulag(dt) {
+    updateHud();
     gulagTime -= dt;
     const remainingSecond = Math.ceil(Math.max(0, gulagTime));
     if (remainingSecond !== gulagDisplayedSecond) {
@@ -1554,10 +1732,10 @@
       gulagTimerEl.textContent = `SOBREVIVE ${remainingSecond} s`;
     }
 
-    const horizontal = Math.max(-1, Math.min(1,
+    let horizontal = Math.max(-1, Math.min(1,
       (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0) + gulagJoystickVector.x
     ));
-    const vertical = Math.max(-1, Math.min(1,
+    let vertical = Math.max(-1, Math.min(1,
       (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0) + gulagJoystickVector.y
     ));
     const magnitude = Math.hypot(horizontal, vertical) || 1;
@@ -1608,12 +1786,14 @@
 
     const dt = Math.max(0, Math.min((timestamp - lastTime) / 1000, .05));
     lastTime = timestamp;
+    dashTimer = Math.max(0, dashTimer - dt);
+    dashCooldown = Math.max(0, dashCooldown - dt);
     const musicMode = shopOpen
       ? "shop"
       : state === "gulagIntro" || state === "gulag" || state === "falling"
         ? "gulag"
         : boss.active
-          ? "boss"
+          ? boss.type.musicMode
           : state === "running"
             ? "race"
             : "silence";
@@ -1648,6 +1828,10 @@
 
     if (boss.active) {
       boss.time += dt;
+      if (!bossMusicError) bossStatus.textContent = "ESQUIVA HASTA QUE TERMINE LA CANCIÓN";
+    }
+
+    if (boss.active) {
       if (bossControlsTimer > 0) {
         bossControlsTimer = Math.max(0, bossControlsTimer - dt);
         bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
@@ -1659,26 +1843,18 @@
       if (bossIntroStatus && bossControlsTimer <= 0) bossIntroStatus.hidden = true;
       boss.anger = Math.max(0, boss.anger - dt * 2.2);
       boss.shake = Math.max(0, boss.shake - dt * 2.5);
-      bossObstacleTimer -= dt;
+      boss.gravityTimer = Math.max(0, boss.gravityTimer - dt);
+      bossObstacleTimer = Math.max(
+        0,
+        bossNextAttackAt - window.pacmanAudio.getCurrentTrackTime()
+      );
       if (bossObstacleTimer <= 0) {
         placeBossAttack();
-        bossObstacleTimer = boss.isSkull
-          ? boss.health <= boss.maxHealth / 2 ? 1.8 : 2.8
-          : getBossAttackInterval();
+        bossNextAttackAt = window.pacmanAudio.getNextBossAttackTime();
+        bossObstacleTimer = bossNextAttackAt - window.pacmanAudio.getCurrentTrackTime();
         updateBossAttackCue();
       }
       updateBossAttackCountdown();
-      ammoSpawnTimer -= dt;
-      if (ammoSpawnTimer <= 0 && ammoPickups.length === 0) {
-        spawnAmmoPickup();
-        ammoSpawnTimer = boss.isSkull
-          ? 1.15 + Math.random() * .35
-          : bossesDefeated === 0
-          ? 2.5 + Math.random() * 1.5
-          : bossesDefeated === 1
-            ? 1.8 + Math.random() * .7
-            : Math.max(1.8, 2.6 - (bossesDefeated - 2) * .08) + Math.random() * .65;
-      }
     } else if (!shopVisit) {
       score += speed * dt * multiplier * 2 ** scoreBoostLevel;
       speed = Math.min(MAX_SPEED, BASE_SPEED + score * .012);
@@ -1718,10 +1894,12 @@
         if (cherries.length > 0) cherrySpawnTimer = 4 + Math.random() * 4;
       }
 
-      finSpawnTimer -= dt;
-      if (finSpawnTimer <= 0 && sharkFins.length === 0) {
-        spawnSharkFin();
-        finSpawnTimer = 5 + Math.random() * 3;
+      if (sharkFins.length === 0) {
+        finSpawnTimer -= dt;
+        if (finSpawnTimer <= 0) {
+          spawnSharkFin();
+          finSpawnTimer = 5 + Math.random() * 3 + bossesDefeated * 1.25;
+        }
       }
     }
 
@@ -1766,12 +1944,20 @@
         horizontalDirection += bossJoystickVector.x;
         verticalDirection += bossJoystickVector.y;
       }
+      if (dashTimer > 0) {
+        horizontalDirection = dashDirection.x;
+        verticalDirection = dashDirection.y;
+      }
       const directionMagnitude = Math.hypot(horizontalDirection, verticalDirection);
       if (directionMagnitude > 1) {
         horizontalDirection /= directionMagnitude;
         verticalDirection /= directionMagnitude;
       }
-      const bossMoveSpeed = 360 * (1 + bossSpeedLevel * .25);
+      if (boss.gravityTimer > 0 && dashTimer <= 0) {
+        horizontalDirection += Math.sign(boss.x + boss.width / 2 - pacman.x) * .22;
+        verticalDirection += Math.sign(boss.y + boss.height / 2 - pacman.y) * .22;
+      }
+      const bossMoveSpeed = 360 * (1 + bossSpeedLevel * .25) * (dashTimer > 0 ? 2.8 : 1);
       pacman.x = Math.max(0, Math.min(
         WIDTH - pacman.width,
         pacman.x + horizontalDirection * bossMoveSpeed * dt
@@ -1948,10 +2134,11 @@
       };
       if (!fin.collected && collides(pacmanBox, finBox)) {
         fin.collected = true;
-        coins += 5;
+        const coinReward = Math.max(1, 5 - bossesDefeated);
+        coins += coinReward;
         updateHud();
         milestoneLabel.textContent = "ALETA ATRAPADA";
-        milestoneValue.textContent = "+5 MONEDAS";
+        milestoneValue.textContent = `+${coinReward} MONEDA${coinReward === 1 ? "" : "S"}`;
         milestoneToast.classList.remove("frenzy");
         milestoneToast.classList.add("visible");
         milestoneToast.classList.remove("animating");
@@ -1988,36 +2175,6 @@
     }
     lifePickups = compactArray(lifePickups, pickup => !pickup.collected && pickup.x > -pickup.width);
 
-    for (const pickup of ammoPickups) {
-      pickup.life -= dt;
-      if (pickup.life <= 0) {
-        pickup.collected = true;
-        ammoSpawnTimer = Math.max(ammoSpawnTimer, .8);
-        continue;
-      }
-      const ammoCollectionBox = {
-        x: pacman.x + 4,
-        y: pacman.y + 4,
-        width: pacman.width - 8,
-        height: pacman.height - 8
-      };
-      if (collides(ammoCollectionBox, pickup)) {
-        ammo += 1;
-        pickup.collected = true;
-        updateAmmoCount();
-        ammoSpawnTimer = 1.2;
-        milestoneLabel.textContent = "MUNICIÓN";
-        milestoneValue.textContent = "+1 BALA";
-        milestoneToast.classList.remove("frenzy");
-        milestoneToast.classList.add("visible");
-        milestoneToast.classList.remove("animating");
-        void milestoneToast.offsetWidth;
-        milestoneToast.classList.add("animating");
-        toastTimer = 1.1;
-        createBurst(pickup.x + pickup.width / 2, pickup.y + pickup.height / 2, colors.cyan, 14);
-      }
-    }
-    ammoPickups = compactArray(ammoPickups, pickup => !pickup.collected && pickup.life > 0);
     for (const particle of particles) {
       particle.x += particle.vx * dt;
       particle.y += particle.vy * dt;
@@ -2025,35 +2182,6 @@
       particle.life -= dt;
     }
     particles = compactArray(particles, particle => particle.life > 0);
-
-    for (const projectile of brainProjectiles) {
-      projectile.x += projectile.vx * dt;
-      projectile.time += dt;
-      projectile.life -= dt;
-      const hit = projectile.x > boss.x && projectile.x < boss.x + boss.width &&
-        projectile.y > boss.y && projectile.y < boss.y + boss.height;
-      if (hit) {
-        boss.health -= projectile.damage;
-        projectile.life = 0;
-        boss.shake = 1;
-        boss.anger = 1;
-        weaponImpacts.push({
-          x: projectile.x,
-          y: projectile.y,
-          weaponLevel: projectile.weaponLevel,
-          life: .6
-        });
-        createBurst(projectile.x, projectile.y, colors.cyan, 12);
-        bossStatus.textContent = `SALUD: ${Math.max(0, boss.health)}`;
-        if (boss.health <= 0) {
-          defeatBoss();
-          break;
-        }
-      }
-    }
-    brainProjectiles = compactArray(brainProjectiles, projectile => projectile.life > 0);
-    for (const impact of weaponImpacts) impact.life -= dt;
-    weaponImpacts = compactArray(weaponImpacts, impact => impact.life > 0);
 
     updateHud();
     draw();
@@ -2368,6 +2496,11 @@
     }
     const type = boss.type;
     const design = bossTypes.indexOf(type);
+    if (design >= legacyBossTypes.length) {
+      drawLoreBoss(design);
+      ctx.restore();
+      return;
+    }
     const t = window.pacmanSettings.reducedAnimations ? 0 : boss.time;
     const bob = Math.sin(t * 2.7) * 12;
     const pulse = 1 + Math.sin(t * 3.2) * .06;
@@ -2605,6 +2738,265 @@
     ctx.fill();
 
     ctx.restore();
+    ctx.restore();
+  }
+
+  function drawLoreBoss(design) {
+    const type = boss.type;
+    const t = window.pacmanSettings.reducedAnimations ? 0 : boss.time;
+    const pulse = 1 + Math.sin(t * 3.2) * .045;
+    ctx.save();
+    ctx.translate(
+      boss.x + boss.width / 2,
+      boss.y + boss.height / 2 + Math.sin(t * 2.4) * 10 + (design === 12 ? 12 : 0)
+    );
+    ctx.scale((design === 12 ? 1.78 : 1.7) * pulse, (design === 12 ? 1.78 : 1.7) * pulse);
+    ctx.shadowColor = type.accent;
+    ctx.shadowBlur = window.pacmanSettings.reducedAnimations ? 0 : 30;
+
+    if (design === 10) {
+      ctx.fillStyle = "#090b12";
+      ctx.beginPath();
+      ctx.moveTo(-38, -30);
+      ctx.lineTo(-86, 93);
+      ctx.lineTo(-39, 72);
+      ctx.lineTo(-12, 104);
+      ctx.lineTo(0, 68);
+      ctx.lineTo(25, 103);
+      ctx.lineTo(39, 72);
+      ctx.lineTo(86, 93);
+      ctx.lineTo(38, -30);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = type.secondary;
+      ctx.beginPath();
+      ctx.moveTo(-48, -19);
+      ctx.lineTo(-68, 23);
+      ctx.lineTo(-42, 18);
+      ctx.lineTo(-29, 48);
+      ctx.lineTo(0, 34);
+      ctx.lineTo(29, 48);
+      ctx.lineTo(42, 18);
+      ctx.lineTo(68, 23);
+      ctx.lineTo(48, -19);
+      ctx.lineTo(0, -49);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = type.primary;
+      ctx.beginPath();
+      ctx.moveTo(-44, -30);
+      ctx.lineTo(-36, -69);
+      ctx.lineTo(-15, -83);
+      ctx.lineTo(0, -68);
+      ctx.lineTo(15, -83);
+      ctx.lineTo(36, -69);
+      ctx.lineTo(44, -30);
+      ctx.lineTo(31, 5);
+      ctx.lineTo(0, 20);
+      ctx.lineTo(-31, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = type.accent;
+      ctx.fillRect(-28, -34, 56, 8);
+      ctx.fillStyle = "#fff2f4";
+      ctx.fillRect(-23, -32, 12, 3);
+      ctx.fillRect(11, -32, 12, 3);
+      ctx.fillStyle = "#111522";
+      ctx.beginPath();
+      ctx.moveTo(-19, 28);
+      ctx.lineTo(0, 40);
+      ctx.lineTo(19, 28);
+      ctx.lineTo(13, 61);
+      ctx.lineTo(0, 75);
+      ctx.lineTo(-13, 61);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = type.accent;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-13, 47);
+      ctx.lineTo(13, 47);
+      ctx.stroke();
+    } else if (design === 11) {
+      ctx.strokeStyle = type.secondary;
+      ctx.lineWidth = 14;
+      ctx.lineCap = "round";
+      for (let tentacle = 0; tentacle < 6; tentacle += 1) {
+        const side = tentacle < 3 ? -1 : 1;
+        const offset = (tentacle % 3 - 1) * 22;
+        ctx.beginPath();
+        ctx.moveTo(side * 30, 30);
+        ctx.quadraticCurveTo(side * 95, 4 + offset, side * (78 + Math.sin(t + tentacle) * 12), 72 + offset);
+        ctx.stroke();
+        ctx.fillStyle = type.accent;
+        ctx.beginPath();
+        ctx.arc(side * (78 + Math.sin(t + tentacle) * 12), 72 + offset, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = type.secondary;
+      ctx.beginPath();
+      ctx.moveTo(-43, 4);
+      ctx.lineTo(-62, 94);
+      ctx.lineTo(0, 70);
+      ctx.lineTo(62, 94);
+      ctx.lineTo(43, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = type.primary;
+      ctx.beginPath();
+      ctx.ellipse(0, -31, 57, 57, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = type.accent;
+      ctx.lineWidth = 3;
+      for (let orbit = 0; orbit < 2; orbit += 1) {
+        ctx.beginPath();
+        ctx.ellipse(0, -31, 75 - orbit * 11, 24 + orbit * 12, t * (orbit ? -.2 : .2), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#f4eaff";
+      for (let star = 0; star < 5; star += 1) {
+        const angle = star * Math.PI * 2 / 5 + t * .3;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * 33, -31 + Math.sin(angle) * 33, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#210b3c";
+      ctx.beginPath();
+      ctx.ellipse(0, -30, 17, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = type.accent;
+      ctx.beginPath();
+      ctx.ellipse(0, -31, 7, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.shadowColor = "#ff4b00";
+      ctx.shadowBlur = window.pacmanSettings.reducedAnimations ? 0 : 44;
+      ctx.fillStyle = "#080606";
+      ctx.beginPath();
+      ctx.moveTo(-44, 5);
+      ctx.lineTo(-72, -3);
+      ctx.lineTo(-108, -35);
+      ctx.lineTo(-98, 13);
+      ctx.lineTo(-127, 34);
+      ctx.lineTo(-83, 39);
+      ctx.lineTo(-74, 88);
+      ctx.lineTo(-34, 60);
+      ctx.lineTo(0, 105);
+      ctx.lineTo(34, 60);
+      ctx.lineTo(74, 88);
+      ctx.lineTo(83, 39);
+      ctx.lineTo(127, 34);
+      ctx.lineTo(98, 13);
+      ctx.lineTo(108, -35);
+      ctx.lineTo(72, -3);
+      ctx.lineTo(44, 5);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "#8f2d08";
+      ctx.lineWidth = 18;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-40, 0);
+      ctx.quadraticCurveTo(-105, 18, -78, 82);
+      ctx.moveTo(40, 0);
+      ctx.quadraticCurveTo(105, 18, 78, 82);
+      ctx.stroke();
+      ctx.strokeStyle = "#ff8a00";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-40, 0);
+      ctx.quadraticCurveTo(-105, 18, -78, 82);
+      ctx.moveTo(40, 0);
+      ctx.quadraticCurveTo(105, 18, 78, 82);
+      ctx.stroke();
+
+      ctx.fillStyle = "#170b06";
+      ctx.beginPath();
+      ctx.moveTo(-48, -1);
+      ctx.lineTo(-68, 61);
+      ctx.lineTo(-39, 50);
+      ctx.lineTo(-22, 83);
+      ctx.lineTo(0, 69);
+      ctx.lineTo(22, 83);
+      ctx.lineTo(39, 50);
+      ctx.lineTo(68, 61);
+      ctx.lineTo(48, -1);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "#ff9d00";
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.ellipse(0, -42, 91, 29, -.28, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "#ff4b00";
+      ctx.lineWidth = 13;
+      ctx.beginPath();
+      ctx.ellipse(0, -42, 79, 21, -.28, Math.PI * .05, Math.PI * .92);
+      ctx.stroke();
+      ctx.strokeStyle = "#ffd166";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, -42, 68, 16, -.28, Math.PI * 1.05, Math.PI * 1.88);
+      ctx.stroke();
+
+      ctx.fillStyle = "#080606";
+      ctx.beginPath();
+      ctx.ellipse(0, -42, 61, 58, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const eventHorizon = ctx.createRadialGradient(0, -42, 28, 0, -42, 60);
+      eventHorizon.addColorStop(0, "#000000");
+      eventHorizon.addColorStop(.72, "#080606");
+      eventHorizon.addColorStop(.9, "#7b2708");
+      eventHorizon.addColorStop(1, "#ff6a00");
+      ctx.fillStyle = eventHorizon;
+      ctx.beginPath();
+      ctx.ellipse(0, -42, 57, 55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ffae32";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(0, -42, 46, 44, 0, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
+
+      ctx.fillStyle = "#080606";
+      ctx.beginPath();
+      ctx.ellipse(0, -42, 35, 38, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowColor = "#ff6a00";
+      ctx.shadowBlur = window.pacmanSettings.reducedAnimations ? 0 : 24;
+      ctx.fillStyle = "#ffae32";
+      ctx.beginPath();
+      ctx.arc(0, -42, 5 + Math.sin(t * 5) * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ff6a00";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-28, 21);
+      ctx.lineTo(0, 38);
+      ctx.lineTo(28, 21);
+      ctx.lineTo(16, 59);
+      ctx.lineTo(0, 70);
+      ctx.lineTo(-16, 59);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = "#100805";
+      ctx.fill();
+      ctx.fillStyle = "#ff6a00";
+      ctx.beginPath();
+      ctx.moveTo(-9, 33);
+      ctx.lineTo(0, 42);
+      ctx.lineTo(9, 33);
+      ctx.lineTo(4, 55);
+      ctx.lineTo(0, 61);
+      ctx.lineTo(-4, 55);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -3309,6 +3701,75 @@
             ctx.fillStyle = boss.type.accent;
             ctx.fill();
           }
+        } else if (hazardStyle === "shadow") {
+          ctx.rotate(obstacle.angle || 0);
+          if (obstacle.telegraph > 0) {
+            ctx.globalAlpha = .65;
+            ctx.strokeStyle = "#ffb8c2";
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(-5, -4, obstacle.width + 10, obstacle.height + 8);
+            ctx.setLineDash([]);
+          }
+          ctx.fillStyle = "#100d18";
+          ctx.beginPath();
+          ctx.moveTo(0, obstacle.height / 2);
+          ctx.lineTo(obstacle.width * .72, 0);
+          ctx.lineTo(obstacle.width, obstacle.height / 2);
+          ctx.lineTo(obstacle.width * .72, obstacle.height);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = "#ff3b55";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(3, obstacle.height / 2);
+          ctx.lineTo(obstacle.width - 3, obstacle.height / 2);
+          ctx.stroke();
+        } else if (hazardStyle === "cosmic") {
+          ctx.rotate(obstacle.angle || 0);
+          if (obstacle.telegraph > 0) {
+            ctx.globalAlpha = .55;
+            ctx.strokeStyle = "#f4eaff";
+            ctx.setLineDash([3, 5]);
+            ctx.beginPath();
+            ctx.arc(obstacle.width / 2, obstacle.height / 2, obstacle.width, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ctx.fillStyle = "#6b35c9";
+          ctx.beginPath();
+          ctx.moveTo(obstacle.width / 2, 0);
+          ctx.lineTo(obstacle.width, obstacle.height / 2);
+          ctx.lineTo(obstacle.width / 2, obstacle.height);
+          ctx.lineTo(0, obstacle.height / 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = "#f0d7ff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(obstacle.width / 2, obstacle.height / 2, 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (hazardStyle === "blackHole") {
+          ctx.rotate(obstacle.angle || 0);
+          if (obstacle.telegraph > 0) {
+            ctx.globalAlpha = .5;
+            ctx.strokeStyle = "#d9c4ff";
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(obstacle.width / 2, obstacle.height / 2, obstacle.width * 1.1, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ctx.fillStyle = "#05030a";
+          ctx.beginPath();
+          ctx.arc(obstacle.width / 2, obstacle.height / 2, obstacle.width * .42, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#53f5ff";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(obstacle.width / 2, obstacle.height / 2, obstacle.width * .62, obstacle.height * .25, -.28, 0, Math.PI * 2);
+          ctx.stroke();
         } else {
           throw new Error(`Unknown boss hazard style: ${hazardStyle}`);
         }
@@ -3449,6 +3910,12 @@
       interactWithShop();
       return;
     }
+    if ((event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyX") &&
+        !event.repeat) {
+      event.preventDefault();
+      dash();
+      return;
+    }
     if (event.code === "Space" || event.code === "ArrowUp" || event.code === "KeyW") {
       event.preventDefault();
       if (state === "ready" || state === "gameover") startGame();
@@ -3465,10 +3932,6 @@
     if (event.code === "ArrowRight" || event.code === "KeyD") {
       event.preventDefault();
       movementKeys.add("right");
-    }
-    if (event.code === "KeyP") {
-      event.preventDefault();
-      shootBrain();
     }
   }
 
@@ -3540,7 +4003,10 @@
   duckButton.addEventListener("pointerup", releaseDuck);
   duckButton.addEventListener("pointercancel", releaseDuck);
   duckButton.addEventListener("lostpointercapture", releaseDuck);
-  shootButton.addEventListener("click", shootBrain);
+  dashButton.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    dash();
+  });
   interactButton.addEventListener("click", interactWithShop);
   bindMovementButton(moveLeftButton, "left");
   bindMovementButton(moveRightButton, "right");
@@ -3562,6 +4028,21 @@
   gulagJoystick.addEventListener("lostpointercapture", releaseGulagJoystick);
   window.addEventListener("keydown", handleKey);
   window.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("pacman-boss-track-ended", event => {
+    if (!boss.active || state !== "running" || event.detail.mode !== boss.type.musicMode) return;
+    defeatBoss();
+    draw();
+  });
+  window.addEventListener("pacman-boss-track-error", event => {
+    if (!boss.active || event.detail.mode !== boss.type.musicMode) return;
+    bossMusicError = true;
+    bossStatus.textContent = "NO SE PUDO CARGAR LA CANCIÓN · REINTENTA AUDIO EN AJUSTES";
+  });
+  window.addEventListener("pacman-boss-track-ready", event => {
+    if (!boss.active || event.detail.mode !== boss.type.musicMode) return;
+    bossMusicError = false;
+    bossStatus.textContent = "ESQUIVA HASTA QUE TERMINE LA CANCIÓN";
+  });
   window.addEventListener("blur", () => {
     movementKeys.clear();
     pacman.duckHeld = false;

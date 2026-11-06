@@ -845,6 +845,19 @@ kbd {
   display: none !important;
 }
 
+.boss-lore {
+  display: block !important;
+  margin-top: 5px;
+  color: #e7d9ff !important;
+  font-size: 8px !important;
+  line-height: 1.4;
+  letter-spacing: .02em !important;
+}
+
+.boss-lore[hidden] {
+  display: none !important;
+}
+
 .boss-attack-hint {
   display: block !important;
   margin-top: 5px;
@@ -990,7 +1003,7 @@ kbd {
 
 .mobile-controls {
   display: none;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 2px solid var(--ink);
 }
 
@@ -1005,9 +1018,10 @@ kbd {
 }
 
 .mobile-controls.gulag-active {
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr auto;
   justify-items: center;
-  padding: 8px;
+  align-items: center;
+  padding: 8px 14px;
 }
 
 .mobile-controls.shop-active {
@@ -1108,6 +1122,18 @@ kbd {
 .mobile-controls button:active {
   background: var(--lime);
   transform: translateY(1px);
+}
+
+.mobile-controls #dashButton {
+  min-width: 64px;
+  color: #07506a;
+  background: #d7f8ff;
+  border-left: 2px solid rgba(16, 24, 40, .16);
+}
+
+.mobile-controls #dashButton.dash-cooldown {
+  color: #687386;
+  background: #e4e8ef;
 }
 
 .mobile-controls.gulag-active button {
