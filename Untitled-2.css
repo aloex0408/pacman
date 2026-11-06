@@ -826,6 +826,21 @@ kbd {
   display: none;
 }
 
+.boss-intro-status {
+  display: inline-block !important;
+  margin-top: 6px;
+  padding: 4px 8px;
+  color: #101828 !important;
+  background: var(--lime);
+  border-radius: 99px;
+  font-size: 9px !important;
+  font-weight: 900;
+}
+
+.boss-intro-status[hidden] {
+  display: none !important;
+}
+
 .boss-panel span,
 .boss-panel strong {
   display: block;
@@ -915,6 +930,12 @@ kbd {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.mobile-controls.boss-joystick-active {
+  grid-template-columns: 1fr auto;
+  justify-items: center;
+  padding: 8px 14px;
+}
+
 .mobile-controls.gulag-active {
   grid-template-columns: 1fr;
   justify-items: center;
@@ -972,6 +993,24 @@ kbd {
   box-shadow: 0 3px 10px rgba(0, 0, 0, .45), 0 0 12px rgba(255, 36, 75, .55);
   pointer-events: none;
   transform: translate(0, 0);
+}
+
+.mobile-controls.boss-joystick-active .gulag-joystick {
+  color: #9af4ff;
+}
+
+.mobile-controls.boss-joystick-active .gulag-joystick-base {
+  background:
+    linear-gradient(rgba(70, 215, 255, .2), rgba(70, 215, 255, .2)) center / 2px 68% no-repeat,
+    linear-gradient(90deg, rgba(70, 215, 255, .2), rgba(70, 215, 255, .2)) center / 68% 2px no-repeat,
+    radial-gradient(circle, rgba(70, 215, 255, .18) 0 34%, rgba(70, 215, 255, .07) 35% 64%, rgba(8, 17, 35, .92) 65%);
+  border-color: rgba(70, 215, 255, .85);
+  box-shadow: inset 0 0 16px rgba(70, 215, 255, .22), 0 0 18px rgba(70, 215, 255, .2);
+}
+
+.mobile-controls.boss-joystick-active .gulag-joystick-knob {
+  background: radial-gradient(circle at 35% 30%, #b4faff, #20a9d2 72%);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .45), 0 0 12px rgba(70, 215, 255, .55);
 }
 
 .mobile-controls button[hidden] {

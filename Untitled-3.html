@@ -163,12 +163,13 @@
             <strong id="bossStatus">SALUD: 8</strong>
             <span id="bossAttackStatus">ATAQUE EN: 4s</span>
             <div class="boss-ammo" id="ammoCount">BALAS: 0</div>
-            <p class="boss-controls"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> VOLAR · <kbd>P</kbd> DISPARAR · RECOGE BALAS AL PASAR</p>
+            <span class="boss-intro-status" id="bossIntroStatus" aria-live="polite" hidden></span>
+            <p class="boss-controls">WASD / JOYSTICK (EN 3s) · P DISPARA · CARGADOR BRILLANTE = +1 BALA</p>
           </div>
         </div>
 
         <div class="mobile-controls" aria-label="Controles del juego">
-          <div id="gulagJoystick" class="gulag-joystick" role="application" aria-label="Joystick: mueve en cualquier dirección para esquivar" hidden>
+          <div id="gulagJoystick" class="gulag-joystick" role="application" aria-label="Joystick: mueve en cualquier dirección" hidden>
             <div class="gulag-joystick-base">
               <div id="gulagJoystickKnob" class="gulag-joystick-knob"></div>
             </div>

@@ -22,6 +22,7 @@
   const bossName = document.getElementById("bossName");
   const bossStatus = document.getElementById("bossStatus");
   const bossAttackStatus = document.getElementById("bossAttackStatus");
+  const bossIntroStatus = document.getElementById("bossIntroStatus");
   const ammoCount = document.getElementById("ammoCount");
   const livesEl = document.getElementById("lives");
   const powerStatusEl = document.getElementById("powerStatus");
@@ -65,6 +66,7 @@
   const PACMAN_HEIGHT = 66;
   const BOSS_PACMAN_SCALE = .8;
   const GULAG_INTRO_DURATION = 3;
+  const BOSS_CONTROL_INTRO_DURATION = 3;
   const MAX_LIVES = 3;
   const CHERRIES_FOR_POWERUP = 5;
   const POWERUP_DURATION = 5;
@@ -102,6 +104,8 @@
   let fallTimer = 0;
   let gulagTime = 0;
   let gulagIntroTime = 0;
+  let bossControlsTimer = 0;
+  let bossJoystickEnabled = false;
   let gulagDisplayedSecond = -1;
   let gulagSpawnTimer = 0;
   let gulagAttackCount = 0;
@@ -551,12 +555,16 @@
     fallTimer = .7;
     pacman.vy = 180;
     movementKeys.clear();
-    mobileControls.classList.remove("boss-active", "gulag-active");
+    mobileControls.classList.remove("boss-active", "boss-joystick-active", "gulag-active");
+    gulagJoystick.hidden = true;
     moveLeftButton.hidden = true;
     moveRightButton.hidden = true;
+    jumpButton.hidden = true;
+    duckButton.hidden = true;
     shootButton.hidden = true;
     interactButton.hidden = true;
     bossPanel.hidden = true;
+    bossIntroStatus.hidden = true;
     pacman.hitTimer = 0;
     updateHud();
   }
@@ -613,6 +621,8 @@
     undefeatedBossTypes = [...bossTypes];
     boss.active = false;
     boss.isSkull = false;
+    bossControlsTimer = 0;
+    bossJoystickEnabled = false;
     setBossPacmanSize(false);
     boss.type = bossTypes[0];
     boss.maxHealth = 10;
@@ -625,13 +635,17 @@
     pacman.facing = 1;
     movementKeys.clear();
     bossPanel.hidden = true;
+    bossIntroStatus.hidden = true;
     gulagHud.hidden = true;
     gulagHud.classList.remove("gulag-intro");
     sharkShopPanel.hidden = true;
     updateAmmoCount();
     mobileControls.classList.remove("boss-active");
+    mobileControls.classList.remove("boss-joystick-active");
     mobileControls.classList.remove("gulag-active");
     mobileControls.classList.remove("shop-active", "shop-open");
+    gulagJoystick.hidden = true;
+    resetGulagJoystick();
     moveLeftButton.hidden = true;
     moveRightButton.hidden = true;
     jumpButton.hidden = false;
@@ -706,6 +720,9 @@
     boss.active = true;
     boss.isSkull = false;
     setBossPacmanSize(true);
+    bossControlsTimer = BOSS_CONTROL_INTRO_DURATION;
+    bossJoystickEnabled = false;
+    setBossJoystickControls(false);
     skullAttackCount = 0;
     boss.type = undefeatedBossTypes[Math.floor(Math.random() * undefeatedBossTypes.length)];
     returningToLane = false;
@@ -742,6 +759,8 @@
     bossName.textContent = boss.type.name;
     bossStatus.textContent = `SALUD: ${boss.maxHealth}`;
     bossAttackStatus.textContent = `${boss.type.attackLabel} EN: ${bossObstacleTimer}s`;
+    bossIntroStatus.hidden = false;
+    bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
     updateAmmoCount();
     brainProjectiles = [];
     weaponImpacts = [];
@@ -755,6 +774,9 @@
     boss.active = true;
     boss.isSkull = true;
     setBossPacmanSize(true);
+    bossControlsTimer = BOSS_CONTROL_INTRO_DURATION;
+    bossJoystickEnabled = false;
+    setBossJoystickControls(false);
     boss.type = skullBossType;
     boss.maxHealth = 20;
     boss.health = boss.maxHealth;
@@ -792,6 +814,8 @@
     bossName.textContent = boss.type.name;
     bossStatus.textContent = `SALUD: ${boss.maxHealth}`;
     bossAttackStatus.textContent = `${boss.type.attackLabel} EN: ${bossObstacleTimer}s`;
+    bossIntroStatus.hidden = false;
+    bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
     updateAmmoCount();
     createBurst(boss.x + boss.width / 2, boss.y + boss.height / 2, boss.type.accent, 48);
     milestoneLabel.textContent = "JUICIO DESBLOQUEADO";
@@ -808,6 +832,10 @@
     const skullBossDefeated = boss.isSkull;
     boss.active = false;
     boss.isSkull = false;
+    bossControlsTimer = 0;
+    bossJoystickEnabled = false;
+    bossIntroStatus.hidden = true;
+    setBossJoystickControls(false);
     setBossPacmanSize(false);
     returningToLane = true;
     pacman.y = GROUND_Y - pacman.height;
@@ -896,6 +924,19 @@
     });
   }
 
+  function makeBossHazardHome(hazard, projectileSpeed, telegraph = .3) {
+    const targetX = pacman.x + pacman.width / 2;
+    const targetY = pacman.y + pacman.height / 2;
+    const originX = hazard.x + hazard.width / 2;
+    const originY = hazard.y + hazard.height / 2;
+    const angle = Math.atan2(targetY - originY, targetX - originX);
+    hazard.bossVx = Math.cos(angle) * projectileSpeed;
+    hazard.vy = Math.sin(angle) * projectileSpeed;
+    hazard.bossHoming = true;
+    hazard.bossHomingSpeed = projectileSpeed;
+    hazard.telegraph = telegraph;
+  }
+
   function placeBossAttack() {
     const startX = boss.x + boss.width / 2;
     const groundY = GROUND_Y;
@@ -922,21 +963,28 @@
           "bone",
           Math.sin(angle) * projectileSpeed
         );
-        obstacles[obstacles.length - 1].bossVx = Math.cos(angle) * projectileSpeed;
+        makeBossHazardHome(obstacles[obstacles.length - 1], projectileSpeed, .25);
       }
     } else if (pattern === 1) {
       const count = enraged ? 9 : 7;
       const spacing = WIDTH / count;
-      const safeLane = Math.floor(Math.random() * count);
+      const safeLane = Math.max(0, Math.min(
+        count - 1,
+        Math.floor((pacman.x + pacman.width / 2) / spacing)
+      ));
       for (let index = 0; index < count; index += 1) {
         if (index === safeLane) continue;
         const y = index % 2 === 0 ? -30 : -95;
-        spawnBossHazard(index * spacing + spacing / 2, y, 26, 26, "bone", 280 * speedMultiplier);
+        spawnBossHazard(index * spacing + spacing / 2, y, 26, 26, "bone");
+        makeBossHazardHome(obstacles[obstacles.length - 1], 245 * speedMultiplier, .45);
       }
     } else if (pattern === 2) {
       const count = enraged ? 4 : 3;
       const laneWidth = WIDTH / (count + 1);
-      const safeLane = Math.floor(Math.random() * (count + 1));
+      const safeLane = Math.max(0, Math.min(
+        count,
+        Math.round((pacman.x + pacman.width / 2) / laneWidth)
+      ));
       for (let lane = 0; lane <= count; lane += 1) {
         if (lane === safeLane) continue;
         spawnBossHazard(lane * laneWidth, 120, 32, groundY - 120, "skullBeam");
@@ -949,7 +997,7 @@
         const x = Math.max(0, Math.min(WIDTH - 30, targetX + offset));
         const y = index % 2 === 0 ? groundY - 36 : 105;
         spawnBossHazard(x, y, 30, 22, "bone");
-        obstacles[obstacles.length - 1].telegraph = .55;
+        makeBossHazardHome(obstacles[obstacles.length - 1], 220 * speedMultiplier, .55);
       }
     }
 
@@ -957,11 +1005,27 @@
   }
 
   function spawnAmmoPickup() {
+    const positions = [];
+    for (let x = 340; x <= WIDTH - 70; x += 80) {
+      for (let y = 110; y <= GROUND_Y - 70; y += 65) {
+        const distance = Math.hypot(
+          x + 24 - (pacman.x + pacman.width / 2),
+          y + 20 - (pacman.y + pacman.height / 2)
+        );
+        if (distance >= 180) positions.push({ x, y });
+      }
+    }
+    const position = positions[Math.floor(Math.random() * positions.length)] || {
+      x: WIDTH - 100,
+      y: 145
+    };
     ammoPickups.push({
-      x: WIDTH + 24,
-      y: 85 + Math.random() * (GROUND_Y - 130),
-      width: 34,
-      height: 22
+      ...position,
+      width: 48,
+      height: 40,
+      life: 12,
+      phase: Math.random() * Math.PI * 2,
+      collected: false
     });
   }
 
@@ -1121,6 +1185,7 @@
 
   function setGulagControls(active) {
     mobileControls.classList.toggle("gulag-active", active);
+    mobileControls.classList.remove("boss-joystick-active");
     gulagJoystick.hidden = !active;
     if (active) {
       mobileControls.classList.remove("boss-active");
@@ -1131,6 +1196,15 @@
       shootButton.hidden = true;
       interactButton.hidden = true;
       resetGulagJoystick();
+    } else if (state === "running" && boss.active && bossJoystickEnabled) {
+      mobileControls.classList.add("boss-active", "boss-joystick-active");
+      gulagJoystick.hidden = false;
+      moveLeftButton.hidden = true;
+      moveRightButton.hidden = true;
+      jumpButton.hidden = true;
+      duckButton.hidden = true;
+      shootButton.hidden = false;
+      interactButton.hidden = true;
     } else if (state === "running" && boss.active) {
       mobileControls.classList.add("boss-active");
       moveLeftButton.hidden = false;
@@ -1148,6 +1222,19 @@
       shootButton.hidden = true;
       interactButton.hidden = true;
     }
+  }
+
+  function setBossJoystickControls(active) {
+    bossJoystickEnabled = active;
+    mobileControls.classList.toggle("boss-joystick-active", active);
+    gulagJoystick.hidden = !active;
+    moveLeftButton.hidden = active;
+    moveRightButton.hidden = active;
+    jumpButton.hidden = active;
+    duckButton.hidden = active;
+    shootButton.hidden = false;
+    interactButton.hidden = true;
+    resetGulagJoystick();
   }
 
   function resetGulagJoystick() {
@@ -1467,6 +1554,15 @@
 
     if (boss.active) {
       boss.time += dt;
+      if (bossControlsTimer > 0) {
+        bossControlsTimer = Math.max(0, bossControlsTimer - dt);
+        bossIntroStatus.textContent = `JOYSTICK EN ${Math.ceil(bossControlsTimer)}s`;
+        if (bossControlsTimer === 0) {
+          bossIntroStatus.hidden = true;
+          setBossJoystickControls(true);
+        }
+      }
+      if (bossIntroStatus && bossControlsTimer <= 0) bossIntroStatus.hidden = true;
       boss.anger = Math.max(0, boss.anger - dt * 2.2);
       boss.shake = Math.max(0, boss.shake - dt * 2.5);
       bossObstacleTimer -= dt;
@@ -1478,7 +1574,7 @@
       }
       setTextIfChanged(bossAttackStatus, `${boss.type.attackLabel} EN: ${Math.ceil(bossObstacleTimer)}s`);
       ammoSpawnTimer -= dt;
-      if (ammoSpawnTimer <= 0) {
+      if (ammoSpawnTimer <= 0 && ammoPickups.length === 0) {
         spawnAmmoPickup();
         ammoSpawnTimer = boss.isSkull
           ? 1.15 + Math.random() * .35
@@ -1567,12 +1663,29 @@
     }
 
     if (boss.active) {
-      const verticalDirection =
+      let horizontalDirection =
+        (movementKeys.has("right") ? 1 : 0) - (movementKeys.has("left") ? 1 : 0);
+      let verticalDirection =
         (movementKeys.has("down") ? 1 : 0) - (movementKeys.has("up") ? 1 : 0);
+      if (bossJoystickEnabled) {
+        horizontalDirection += gulagJoystickVector.x;
+        verticalDirection += gulagJoystickVector.y;
+      }
+      const directionMagnitude = Math.hypot(horizontalDirection, verticalDirection);
+      if (directionMagnitude > 1) {
+        horizontalDirection /= directionMagnitude;
+        verticalDirection /= directionMagnitude;
+      }
+      const bossMoveSpeed = 360 * (1 + bossSpeedLevel * .25);
+      pacman.x = Math.max(0, Math.min(
+        WIDTH - pacman.width,
+        pacman.x + horizontalDirection * bossMoveSpeed * dt
+      ));
       pacman.y = Math.max(
         55,
         Math.min(GROUND_Y - pacman.height, pacman.y + verticalDirection * 300 * dt)
       );
+      if (horizontalDirection !== 0) pacman.facing = Math.sign(horizontalDirection);
       pacman.vy = 0;
       pacman.grounded = false;
       pacman.ducking = false;
@@ -1586,14 +1699,7 @@
       }
     }
 
-    if (boss.active) {
-      const movingLeft = movementKeys.has("left");
-      const movingRight = movementKeys.has("right");
-      const direction = movingLeft === movingRight ? 0 : movingLeft ? -1 : 1;
-      const bossMoveSpeed = 360 * (1 + bossSpeedLevel * .25);
-      pacman.x = Math.max(0, Math.min(WIDTH - pacman.width, pacman.x + direction * bossMoveSpeed * dt));
-      if (direction !== 0) pacman.facing = direction;
-    } else if (shopVisit && !shopOpen) {
+    if (!boss.active && shopVisit && !shopOpen) {
       const movingLeft = movementKeys.has("left");
       const movingRight = movementKeys.has("right");
       const direction = movingLeft === movingRight ? 0 : movingLeft ? -1 : 1;
@@ -1629,14 +1735,34 @@
     }
 
     for (const obstacle of obstacles) {
-      obstacle.x -= speed * dt;
-      obstacle.x += (obstacle.bossVx || 0) * dt;
+      if (obstacle.type === "bossObstacle") {
+        if (obstacle.bossHoming && obstacle.telegraph <= 0) {
+          const targetX = pacman.x + pacman.width / 2;
+          const targetY = pacman.y + pacman.height / 2;
+          const currentAngle = Math.atan2(obstacle.vy, obstacle.bossVx);
+          const targetAngle = Math.atan2(
+            targetY - (obstacle.y + obstacle.height / 2),
+            targetX - (obstacle.x + obstacle.width / 2)
+          );
+          const angleDifference = Math.atan2(
+            Math.sin(targetAngle - currentAngle),
+            Math.cos(targetAngle - currentAngle)
+          );
+          const angle = currentAngle + Math.max(-1.5 * dt, Math.min(1.5 * dt, angleDifference));
+          obstacle.bossVx = Math.cos(angle) * obstacle.bossHomingSpeed;
+          obstacle.vy = Math.sin(angle) * obstacle.bossHomingSpeed;
+        }
+        obstacle.x += (obstacle.bossVx || 0) * dt;
+      } else {
+        obstacle.x -= speed * dt;
+        obstacle.x += (obstacle.bossVx || 0) * dt;
+      }
       obstacle.y += (obstacle.vy || 0) * dt;
       if (obstacle.telegraph > 0) obstacle.telegraph = Math.max(0, obstacle.telegraph - dt);
       if (obstacle.bobAmplitude) {
         obstacle.y = obstacle.baseY + Math.sin(timestamp / 300 + obstacle.phase) * obstacle.bobAmplitude;
       }
-      if (!obstacle.passed && obstacle.x + obstacle.width < pacman.x) {
+      if (obstacle.type !== "bossObstacle" && !obstacle.passed && obstacle.x + obstacle.width < pacman.x) {
         obstacle.passed = true;
         score += 50 * multiplier * 2 ** scoreBoostLevel;
       }
@@ -1655,7 +1781,12 @@
       }
     }
 
-    obstacles = compactArray(obstacles, obstacle => obstacle.x > -100);
+    obstacles = compactArray(obstacles, obstacle => obstacle.type === "bossObstacle"
+      ? obstacle.x < WIDTH + 100 &&
+        obstacle.x + obstacle.width > -100 &&
+        obstacle.y < GROUND_Y + 120 &&
+        obstacle.y + obstacle.height > -120
+      : obstacle.x > -100);
 
     const obstacleBesidePacman = obstacles.some(obstacle =>
       obstacle.x < pacman.x + pacman.width &&
@@ -1759,7 +1890,12 @@
     lifePickups = compactArray(lifePickups, pickup => !pickup.collected && pickup.x > -pickup.width);
 
     for (const pickup of ammoPickups) {
-      pickup.x -= (speed + 90) * dt;
+      pickup.life -= dt;
+      if (pickup.life <= 0) {
+        pickup.collected = true;
+        ammoSpawnTimer = Math.max(ammoSpawnTimer, .8);
+        continue;
+      }
       const ammoCollectionBox = {
         x: pacman.x + 4,
         y: pacman.y + 4,
@@ -1770,10 +1906,19 @@
         ammo += 1;
         pickup.collected = true;
         updateAmmoCount();
-        createBurst(pickup.x + pickup.width / 2, pickup.y + pickup.height / 2, colors.cyan, 8);
+        ammoSpawnTimer = 1.2;
+        milestoneLabel.textContent = "MUNICIÓN";
+        milestoneValue.textContent = "+1 BALA";
+        milestoneToast.classList.remove("frenzy");
+        milestoneToast.classList.add("visible");
+        milestoneToast.classList.remove("animating");
+        void milestoneToast.offsetWidth;
+        milestoneToast.classList.add("animating");
+        toastTimer = 1.1;
+        createBurst(pickup.x + pickup.width / 2, pickup.y + pickup.height / 2, colors.cyan, 14);
       }
     }
-    ammoPickups = compactArray(ammoPickups, pickup => !pickup.collected && pickup.x > -pickup.width);
+    ammoPickups = compactArray(ammoPickups, pickup => !pickup.collected && pickup.life > 0);
     for (const particle of particles) {
       particle.x += particle.vx * dt;
       particle.y += particle.vy * dt;
@@ -2542,21 +2687,40 @@
 
   function drawAmmoPickups() {
     for (const pickup of ammoPickups) {
+      const reducedAnimations = window.pacmanSettings.reducedAnimations;
+      const bob = reducedAnimations ? 0 : Math.sin(performance.now() / 130 + pickup.phase) * 4;
+      const pulse = reducedAnimations ? 1 : .8 + Math.sin(performance.now() / 110 + pickup.phase) * .2;
       ctx.save();
-      ctx.translate(pickup.x + pickup.width / 2, pickup.y + pickup.height / 2);
-      ctx.rotate(-.35);
-      ctx.shadowColor = colors.cyan;
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = colors.cyan;
+      ctx.translate(pickup.x + pickup.width / 2, pickup.y + pickup.height / 2 + bob);
+      ctx.globalAlpha = reducedAnimations ? 1 : .8 + pulse * .2;
+      ctx.shadowColor = "#46d7ff";
+      ctx.shadowBlur = 20;
+      ctx.strokeStyle = "rgba(255,255,255,.9)";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.roundRect(-10, -5, 17, 10, 3);
-      ctx.fill();
+      ctx.ellipse(0, 0, 26, 22, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "#153950";
       ctx.beginPath();
-      ctx.moveTo(7, -5);
-      ctx.lineTo(13, 0);
-      ctx.lineTo(7, 5);
-      ctx.closePath();
+      ctx.roundRect(-21, -15, 42, 30, 7);
       ctx.fill();
+      ctx.strokeStyle = "#a9f8ff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-21, -15, 42, 30, 7);
+      ctx.stroke();
+      ctx.fillStyle = "#ffd43b";
+      ctx.beginPath();
+      ctx.roundRect(-14, -9, 28, 18, 4);
+      ctx.fill();
+      ctx.fillStyle = "#153950";
+      ctx.font = "900 15px 'DM Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("+1", 0, 0);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 9px 'DM Mono', monospace";
+      ctx.fillText("BALA", 0, 25);
       ctx.restore();
     }
   }
@@ -3227,13 +3391,14 @@
   bindMovementButton(moveLeftButton, "left");
   bindMovementButton(moveRightButton, "right");
   gulagJoystick.addEventListener("pointerdown", event => {
-    if (state !== "gulag") return;
+    if (state !== "gulag" && !(state === "running" && boss.active && bossJoystickEnabled)) return;
     event.preventDefault();
     gulagJoystick.setPointerCapture(event.pointerId);
     updateGulagJoystick(event);
   });
   gulagJoystick.addEventListener("pointermove", event => {
-    if (state === "gulag" && gulagJoystick.hasPointerCapture(event.pointerId)) {
+    if ((state === "gulag" || (state === "running" && boss.active && bossJoystickEnabled)) &&
+        gulagJoystick.hasPointerCapture(event.pointerId)) {
       updateGulagJoystick(event);
     }
   });
