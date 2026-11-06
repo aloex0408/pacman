@@ -2089,6 +2089,8 @@
   }
 
   function drawGulag() {
+    const reducedAnimations = window.pacmanSettings.reducedAnimations;
+    const animationTime = reducedAnimations ? 0 : performance.now() / 1000;
     setCanvasLogicalTransform();
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
@@ -2097,7 +2099,7 @@
     ctx.fillStyle = gulagBackdropGradient;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    const pulse = window.pacmanSettings.reducedAnimations
+    const pulse = reducedAnimations
       ? .75
       : .75 + Math.sin(performance.now() / 180) * .12;
     ctx.save();
@@ -2180,6 +2182,25 @@
     ctx.strokeRect(300, 125, 360, 230);
     ctx.shadowBlur = 0;
 
+    if (!reducedAnimations) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (let ember = 0; ember < 16; ember += 1) {
+        const phase = (animationTime * (.12 + ember % 4 * .035) + ember * .173) % 1;
+        const x = 310 + (ember * 71) % 340 + Math.sin(animationTime + ember) * 5;
+        const y = 350 - phase * 212;
+        ctx.globalAlpha = .12 + Math.sin(phase * Math.PI) * .32;
+        ctx.fillStyle = ember % 3 === 0 ? "#ffc2cb" : "#ff3152";
+        ctx.shadowColor = "#ff153c";
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(x, y, ember % 4 === 0 ? 2.2 : 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
     for (const beam of gulagBeams) {
       ctx.save();
       ctx.globalAlpha = beam.warning > 0
@@ -2195,7 +2216,6 @@
         ctx.fillStyle = "#fff1f4";
         ctx.fillRect(beam.x - 3, 126, 6, 228);
       }
-      ctx.restore();
       ctx.restore();
     }
 
@@ -2223,7 +2243,7 @@
     ctx.translate(heartX, heartY);
     ctx.scale(1.15, 1.15);
     ctx.shadowColor = "#ff153c";
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = reducedAnimations ? 12 : 14 + Math.sin(animationTime * 8) * 5;
     ctx.fillStyle = "#ff244b";
     ctx.beginPath();
     ctx.moveTo(0, 11);
