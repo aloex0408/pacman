@@ -54,7 +54,7 @@
   gulagBackdropGradient.addColorStop(1, "#08070c");
   const GROUND_Y = 355;
   const GRAVITY = 1900;
-  const JUMP_SPEED = -660;
+  const JUMP_SPEED = -700;
   const BASE_SPEED = 190;
   const MAX_SPEED = 340;
   const MILESTONE_INTERVAL = 10000;
