@@ -4028,6 +4028,8 @@
       const moveDown = pressed(13);
       const duckPressed = pressed(0);
       const jumpPressed = pressed(1);
+      pressed(7);
+      const startGamePressed = justPressed(1) || justPressed(7);
       const startPressed = pressed(9);
 
       gamepadDirection.x = Math.max(-1, Math.min(1,
@@ -4037,7 +4039,7 @@
         axis(1) + (moveDown ? 1 : 0) - (moveUp ? 1 : 0)
       ));
 
-      if (justPressed(1) && (state === "ready" || state === "gameover")) {
+      if (startGamePressed && (state === "ready" || state === "gameover")) {
         startGame();
       } else if (justPressed(1) && state === "running" && !boss.active) {
         jump();
