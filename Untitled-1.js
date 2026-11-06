@@ -119,6 +119,7 @@
   const DASH_DURATION = .28;
   const DASH_COOLDOWN = 1.8;
   const MAX_LIVES = 4;
+  const STARTING_LIVES = 3;
   const CHERRIES_FOR_POWERUP = 5;
   const POWERUP_DURATION = 5;
   const FRENZY_KILLS_FOR_BOSS = 10;
@@ -172,7 +173,8 @@
   let gulagBeams = [];
   let skullAttackCount = 0;
   let ammo = 0;
-  let lives = MAX_LIVES;
+  let lives = STARTING_LIVES;
+  let bonusLifePurchased = false;
   let nextLifeScore = 50000;
   let nextShopScore = FIRST_SHOP_SCORE;
   let coins = 0;
@@ -330,11 +332,11 @@
     duckButton.setAttribute("aria-label", boss.active ? "Volar hacia abajo" : "Agacharse");
     duckButton.querySelector("span").textContent = boss.active ? "ABAJO" : "AGÁCHATE";
     dashButton.setAttribute("aria-label", dashCooldown > 0
-      ? `Dash en ${dashCooldown.toFixed(1)} segundos`
-      : "Dash disponible");
+      ? `SHIFT: dash en ${dashCooldown.toFixed(1)} segundos`
+      : "SHIFT: dash disponible");
     dashButton.querySelector("span").textContent = dashCooldown > 0
       ? `${dashCooldown.toFixed(1)}s`
-      : "DASH";
+      : "SHIFT";
     dashButton.classList.toggle("dash-cooldown", dashCooldown > 0);
   }
 
@@ -390,11 +392,13 @@
       let maxed = false;
 
       if (item === "life") {
-        maxed = lives >= MAX_LIVES;
-        titleEl.textContent = "Vida extra";
+        maxed = bonusLifePurchased || lives >= MAX_LIVES;
+        titleEl.textContent = "Cuarta vida";
         descriptionEl.textContent = maxed
-          ? "Ya tienes todas tus vidas."
-          : `Recupera 1 vida (máximo ${MAX_LIVES}).`;
+          ? bonusLifePurchased
+            ? "Ya compraste tu única vida extra."
+            : "Ya tienes cuatro vidas."
+          : "Empiezas con 3; compra una vida extra por partida.";
       } else if (item === "score") {
         maxed = scoreBoostLevel >= 4;
         titleEl.textContent = "Racha x2";
@@ -419,7 +423,11 @@
       }
 
       const cost = getShopItemCost(item);
-      priceEl.textContent = maxed ? (item === "life" ? "VIDAS LLENAS" : "MÁXIMO") : `COMPRAR · ${cost} MONEDAS`;
+      priceEl.textContent = maxed
+        ? item === "life"
+          ? bonusLifePurchased ? "YA COMPRADA" : "VIDAS LLENAS"
+          : "MÁXIMO"
+        : `COMPRAR · ${cost} MONEDAS`;
       button.disabled = maxed || coins < cost;
     }
   }
@@ -428,10 +436,11 @@
     if (!shopOpen) return;
     const cost = getShopItemCost(item);
     if (item === "life") {
-      if (lives >= MAX_LIVES || coins < cost) return;
+      if (bonusLifePurchased || lives >= MAX_LIVES || coins < cost) return;
       coins -= cost;
       lives += 1;
-      shopMessageEl.textContent = "¡Vida recuperada! Puedes comprar otra mejora.";
+      bonusLifePurchased = true;
+      shopMessageEl.textContent = "¡Cuarta vida comprada! Esta mejora solo se puede comprar una vez.";
       updateShopInterface();
       updateHud();
       return;
@@ -670,7 +679,8 @@
     brainProjectiles = [];
     weaponImpacts = [];
     ammo = 0;
-    lives = MAX_LIVES;
+    lives = STARTING_LIVES;
+    bonusLifePurchased = false;
     nextLifeScore = 50000;
     nextShopScore = FIRST_SHOP_SCORE;
     coins = 0;
@@ -2158,7 +2168,7 @@
         width: pickup.width - 8,
         height: pickup.height - 8
       };
-      if (lives < MAX_LIVES && collides(pacmanBox, pickupBox)) {
+      if (lives < STARTING_LIVES && collides(pacmanBox, pickupBox)) {
         lives += 1;
         if (gulagLifeActive) gulagReentriesAvailable += 1;
         pickup.collected = true;
@@ -3272,56 +3282,130 @@
     const bob = shopOpen ? 0 : Math.sin(performance.now() / 260) * 3;
     ctx.save();
     ctx.translate(shopX, GROUND_Y - 44 + bob);
-    ctx.shadowColor = "#ffd43b";
-    ctx.shadowBlur = 18;
+    ctx.shadowColor = "#36d9d0";
+    ctx.shadowBlur = 20;
 
-    ctx.fillStyle = "#ffc928";
+    ctx.fillStyle = "#123c52";
     ctx.beginPath();
-    ctx.moveTo(-54, 11);
-    ctx.lineTo(-77, -7);
-    ctx.lineTo(-49, -3);
+    ctx.moveTo(-52, -2);
+    ctx.lineTo(-82, -26);
+    ctx.lineTo(-73, 1);
+    ctx.lineTo(-84, 22);
+    ctx.lineTo(-52, 12);
     ctx.closePath();
     ctx.fill();
+
+    const bodyGradient = ctx.createLinearGradient(0, -34, 0, 32);
+    bodyGradient.addColorStop(0, "#75eee0");
+    bodyGradient.addColorStop(.48, "#20aeb7");
+    bodyGradient.addColorStop(1, "#087a91");
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 56, 34, 0, 0, Math.PI * 2);
+    ctx.moveTo(-59, -1);
+    ctx.quadraticCurveTo(-43, -30, -5, -31);
+    ctx.lineTo(13, -52);
+    ctx.lineTo(30, -29);
+    ctx.quadraticCurveTo(54, -27, 68, -11);
+    ctx.quadraticCurveTo(77, -5, 88, 0);
+    ctx.quadraticCurveTo(78, 7, 66, 9);
+    ctx.quadraticCurveTo(49, 31, 8, 31);
+    ctx.quadraticCurveTo(-38, 29, -59, -1);
     ctx.fill();
 
-    ctx.fillStyle = "#fff2a6";
+    ctx.fillStyle = "#d6f5e9";
     ctx.beginPath();
-    ctx.ellipse(18, 15, 29, 15, 0, 0, Math.PI * 2);
+    ctx.moveTo(-45, 8);
+    ctx.quadraticCurveTo(-10, 4, 17, 12);
+    ctx.quadraticCurveTo(41, 18, 64, 8);
+    ctx.quadraticCurveTo(47, 31, 8, 31);
+    ctx.quadraticCurveTo(-28, 29, -45, 8);
+    ctx.closePath();
     ctx.fill();
+
+    ctx.fillStyle = "#0e5068";
+    ctx.beginPath();
+    ctx.moveTo(-2, 20);
+    ctx.lineTo(16, 8);
+    ctx.lineTo(31, 30);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(5, 67, 87, .7)";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    for (let gill = 0; gill < 3; gill += 1) {
+      ctx.beginPath();
+      ctx.moveTo(-31 + gill * 10, -8);
+      ctx.quadraticCurveTo(-38 + gill * 10, 1, -30 + gill * 10, 8);
+      ctx.stroke();
+    }
+
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.ellipse(28, -10, 7, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(40, -15, 7, 8, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = colors.ink;
     ctx.beginPath();
-    ctx.arc(30, -9, 3.5, 0, Math.PI * 2);
+    ctx.arc(42, -15, 3.2, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "#e99d24";
+    ctx.fillStyle = "#062b3e";
     ctx.beginPath();
-    ctx.moveTo(-12, -27);
-    ctx.lineTo(2, -47);
-    ctx.lineTo(16, -27);
+    ctx.moveTo(29, -1);
+    ctx.quadraticCurveTo(55, 9, 82, 1);
+    ctx.quadraticCurveTo(62, 18, 35, 10);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = "#ff5f54";
-    ctx.fillRect(-20, -49, 43, 7);
-    ctx.fillStyle = "#7c5cff";
-    ctx.fillRect(-12, -67, 27, 19);
-    ctx.fillStyle = "#c8ff3d";
-    ctx.fillRect(-12, -52, 27, 4);
+    ctx.fillStyle = "#fff8db";
+    for (let tooth = 0; tooth < 5; tooth += 1) {
+      const toothX = 42 + tooth * 7;
+      ctx.beginPath();
+      ctx.moveTo(toothX, 4);
+      ctx.lineTo(toothX + 4, 11);
+      ctx.lineTo(toothX + 7, 4);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.shadowColor = "#ffd166";
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = "#ffd166";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-10, 18);
+    ctx.quadraticCurveTo(9, 31, 27, 17);
+    ctx.stroke();
+    ctx.fillStyle = "#ffbd35";
+    ctx.beginPath();
+    ctx.arc(9, 29, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#704313";
+    ctx.font = "bold 9px 'DM Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("$", 9, 29);
+
+    ctx.shadowColor = "#123c52";
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = "#123c52";
+    ctx.beginPath();
+    ctx.moveTo(-35, -25);
+    ctx.lineTo(-19, -45);
+    ctx.lineTo(4, -26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#ffd166";
+    ctx.fillRect(-37, -28, 43, 5);
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = "#101828";
+    ctx.fillStyle = "#ffffff";
     ctx.font = "bold 12px 'DM Mono', monospace";
     ctx.textAlign = "center";
-    ctx.fillText("TIENDA", 0, -84);
+    ctx.fillText("MERCADER", 0, -68);
     if (Math.abs(pacman.x + pacman.width / 2 - shopX) <= 115) {
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#c8ff3d";
       ctx.font = "bold 11px 'DM Mono', monospace";
-      ctx.fillText("PULSA E", 0, -99);
+      ctx.fillText("PULSA E", 0, -83);
     }
     ctx.restore();
   }
@@ -3910,7 +3994,7 @@
       interactWithShop();
       return;
     }
-    if ((event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyX") &&
+    if ((event.code === "ShiftLeft" || event.code === "ShiftRight") &&
         !event.repeat) {
       event.preventDefault();
       dash();
