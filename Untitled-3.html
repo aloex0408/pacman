@@ -51,14 +51,14 @@
       <div class="hero-copy">
         <p class="eyebrow">UNA MISIÓN: DERROTARLOS A TODOS</p>
         <h1>¡Vence a todos<br><span>los jefes!</span></h1>
-        <p class="intro">Corre y salta obstáculos entre combates. Sobrevive a los patrones especiales de cada jefe esquivando con WASD o el joystick; usa el dash para escapar de los ataques. Los ataques siguen el ritmo de la música y cada jefe cae cuando termina su canción. Cada tercer jefe da paso a una entidad del lore. La primera batalla no comienza antes de 1 minuto, pero el Frenzy puede invocar a un jefe antes.</p>
+        <p class="intro">Corre y salta obstáculos entre combates. Sobrevive a los patrones especiales de cada jefe esquivando con WASD o el joystick; usa RT, Y o SHIFT para escapar con el dash. Cada jefe suma un abanico de proyectiles y sus canciones avanzan un 15 % más rápido para acortar el combate. Cada tercer jefe da paso a una entidad del lore. La primera batalla no comienza antes de 1 minuto, pero el Frenzy puede invocar a un jefe antes.</p>
         <div class="controls-hint">
           <span><kbd>W</kbd> / <kbd>SPACE</kbd> Salta en la carrera · esquiva arriba en combate</span>
           <span><kbd>S</kbd> / <kbd>↓</kbd> Agáchate en la carrera · esquiva abajo en combate</span>
           <span><kbd>A</kbd> / <kbd>D</kbd> Muévete durante el combate o acércate a la tienda</span>
           <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Esquiva en jefes y Gulag</span>
-          <span><kbd>SHIFT</kbd> Dash para esquivar (recarga breve)</span>
-          <span><kbd>CONTROL</kbd> RT o B/○ inicia · Stick mueve en jefes y Gulag · A/× agacha · B/○ salta · Y/△ dash en jefes · START pausa</span>
+          <span><kbd>SHIFT</kbd> / <kbd>RT</kbd> Dash para esquivar (recarga breve)</span>
+          <span><kbd>CONTROL</kbd> RT o B/○ inicia · Stick mueve en jefes y Gulag · A/× agacha · B/○ salta · RT, Y/△ o SHIFT activa el dash · START pausa</span>
           <span><kbd>RT / E</kbd> Abre la tienda cuando estés cerca · cruceta/stick navega · A/× compra · B/○ cierra</span>
           <span><kbd>ESC</kbd> Pausa o reanuda la partida</span>
         </div>
@@ -103,7 +103,7 @@
           <div class="start-panel" id="startPanel">
             <span class="panel-icon">▶</span>
             <h2>Tu misión: vencer a todos los jefes</h2>
-            <p>Esquiva obstáculos saltando o agachándote. En los combates, muévete con W/A/S/D o las flechas y pulsa SHIFT para hacer dash. Empiezas con 3 vidas; puedes comprar una cuarta en la tienda. Los ataques especiales siguen el ritmo de la música; sobrevive esquivando hasta que termine la canción de cada jefe. Cada tercer combate aparecerá una entidad del lore. Si pierdes tus vidas, tendrás que sobrevivir al Gulag.</p>
+            <p>Esquiva obstáculos saltando o agachándote. En los combates, muévete con W/A/S/D o las flechas y pulsa RT o SHIFT para hacer dash. Empiezas con 3 vidas; puedes comprar una cuarta en la tienda. Los ataques especiales siguen el ritmo de la música; sobrevive esquivando hasta que termine la canción de cada jefe. Cada tercer combate aparecerá una entidad del lore. Si pierdes tus vidas, tendrás que sobrevivir al Gulag.</p>
             <button id="startButton" type="button">INICIAR JUEGO <span>→</span></button>
           </div>
           <div class="game-over-panel" id="gameOverPanel" hidden>
@@ -193,7 +193,7 @@
             <span id="bossAttackStatus">ATAQUE EN: 4s</span>
             <span class="boss-attack-hint" id="bossAttackHint"></span>
             <span class="boss-intro-status" id="bossIntroStatus" aria-live="polite" hidden></span>
-            <p class="boss-controls">WASD / JOYSTICK PARA ESQUIVAR · SHIFT / DASH PARA ESCAPAR</p>
+            <p class="boss-controls">WASD / JOYSTICK PARA ESQUIVAR · RT / SHIFT / Y PARA EL DASH</p>
           </div>
         </div>
 

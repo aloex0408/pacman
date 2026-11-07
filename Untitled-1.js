@@ -55,16 +55,17 @@
 
   function updateBossAttackCue() {
     const patterns = boss.type.attackSet === "shadow"
-      ? ["CORTES UMBRÍOS · CAMBIA DE CARRIL", "LÁTIGOS DE SOMBRA · MUÉVETE", "JUICIO ROJO · DASH PARA ESCAPAR"]
+      ? ["CORTES UMBRÍOS · CAMBIA DE CARRIL", "LÁTIGOS DE SOMBRA · MUÉVETE", "JUICIO ROJO · DASH PARA ESCAPAR", "ABANICO UMBRÍO · CRUZA LOS PROYECTILES"]
       : boss.type.attackSet === "cosmic"
-        ? ["PULSO ESTELAR · BUSCA UN HUECO", "ÓRBITAS VIOLETAS · CRUZA EL PATRÓN", "LLUVIA CÓSMICA · NO TE DETENGAS"]
+        ? ["PULSO ESTELAR · BUSCA UN HUECO", "ÓRBITAS VIOLETAS · CRUZA EL PATRÓN", "LLUVIA CÓSMICA · NO TE DETENGAS", "ABANICO CÓSMICO · CAMBIA DE ALTURA"]
         : boss.type.attackSet === "blackHole"
-          ? ["MAREA GRAVITATORIA · ALÉJATE", "ANILLO DE EVENTOS · ROMPE LA ÓRBITA", "COLAPSO · DASH AL CARRIL SEGURO"]
+          ? ["MAREA GRAVITATORIA · ALÉJATE", "ANILLO DE EVENTOS · ROMPE LA ÓRBITA", "COLAPSO · DASH AL CARRIL SEGURO", "ABANICO ABISMAL · SIGUE EN MOVIMIENTO"]
           : [
       "RÁFAGA DE HUESOS · CAMBIA DE ALTURA",
       "LLUVIA DE HUESOS · BUSCA UN HUECO",
       "RAYOS · QUEDA UN CARRIL SEGURO",
-      "HUESOS TELEDIRIGIDOS · MANTENTE EN MOVIMIENTO"
+      "HUESOS TELEDIRIGIDOS · MANTENTE EN MOVIMIENTO",
+      "ABANICO ÓSEO · CAMBIA DE ALTURA"
           ];
     setTextIfChanged(bossAttackHint, `SIGUIENTE: ${patterns[skullAttackCount % patterns.length]}`);
   }
@@ -328,7 +329,7 @@
             ? "PULSA RT / E PARA ABRIR LA TIENDA DEL TIBURÓN"
             : "ACÉRCATE AL TIBURÓN CON A / D"
           : boss.active
-            ? "COMBATE DE JEFE · SOBREVIVE ESQUIVANDO · SHIFT PARA DASH"
+                ? "COMBATE DE JEFE · SOBREVIVE ESQUIVANDO · RT / SHIFT PARA DASH"
             : pendingBoss
               ? `JEFE EN ESPERA · DESBLOQUEO EN ${Math.ceil(Math.max(0, BOSS_UNLOCK_SECONDS - runElapsed))}s`
               : powerTimer > 0
@@ -1121,7 +1122,7 @@
       musicDuration > 0 &&
       window.pacmanAudio.getCurrentTrackTime() >= musicDuration * .6;
     const speedMultiplier = enraged ? 1.25 : 1;
-    const pattern = (skullAttackCount - 1) % 3;
+    const pattern = (skullAttackCount - 1) % 4;
 
     if (boss.type.attackSet === "shadow") {
       if (pattern === 0) {
@@ -1146,7 +1147,7 @@
           spawnBossHazard(x, 105, 38, groundY - 105, "skullBeam");
           obstacles[obstacles.length - 1].telegraph = .95;
         }
-      } else {
+      } else if (pattern === 2) {
         for (const angleOffset of [-.38, -.19, 0, .19, .38]) {
           const originX = boss.x + 25;
           const originY = boss.y + 155;
@@ -1170,6 +1171,8 @@
           hazard.bossHoming = true;
           hazard.bossHomingSpeed = 295 * speedMultiplier;
         }
+      } else {
+        spawnBossFanAttack(startX, boss.y + 155, "shadow", speedMultiplier);
       }
     } else if (boss.type.attackSet === "cosmic") {
       if (pattern === 0 || pattern === 2) {
@@ -1192,7 +1195,7 @@
           }) - 1];
           hazard.angle = angle;
         }
-      } else {
+      } else if (pattern === 1) {
         const safeLane = Math.max(1, Math.min(7, Math.floor(
           (pacman.x + pacman.width / 2) / (WIDTH / 8)
         )));
@@ -1213,6 +1216,8 @@
           }) - 1];
           hazard.angle = Math.PI / 2;
         }
+      } else {
+        spawnBossFanAttack(startX, boss.y + 170, "cosmic", speedMultiplier);
       }
     } else if (boss.type.attackSet === "blackHole") {
       if (pattern === 0) {
@@ -1243,7 +1248,7 @@
           spawnBossHazard(lane * WIDTH / 8, 118, 34, groundY - 118, "skullBeam");
           obstacles[obstacles.length - 1].telegraph = 1.05;
         }
-      } else {
+      } else if (pattern === 2) {
         for (let index = 0; index < 9; index += 1) {
           const angle = index * Math.PI * 2 / 9;
           const hazard = obstacles[obstacles.push({
@@ -1261,9 +1266,11 @@
           }) - 1];
           hazard.angle = angle + Math.PI;
         }
+      } else {
+        spawnBossFanAttack(startX, boss.y + 165, "blackHole", speedMultiplier);
       }
     } else {
-      const standardPattern = (skullAttackCount - 1) % 4;
+      const standardPattern = (skullAttackCount - 1) % 5;
 
       if (standardPattern === 0) {
         const originX = boss.x + 25;
@@ -1309,7 +1316,7 @@
           if (lane === safeLane) continue;
           spawnBossHazard(lane * laneWidth, 120, 32, groundY - 120, "skullBeam");
         }
-      } else {
+      } else if (standardPattern === 3) {
         const count = enraged ? 7 : 5;
         const targetX = pacman.x + pacman.width / 2;
         for (let index = 0; index < count; index += 1) {
@@ -1319,10 +1326,40 @@
           spawnBossHazard(x, y, 30, 22, "bone");
           makeBossHazardHome(obstacles[obstacles.length - 1], 220 * speedMultiplier, .8);
         }
+      } else {
+        spawnBossFanAttack(boss.x + 25, boss.y + 155, "bone", speedMultiplier);
       }
     }
 
     createBurst(startX, groundY - 35, boss.type.accent, enraged ? 16 : 10);
+  }
+
+  function spawnBossFanAttack(originX, originY, style, speedMultiplier) {
+    const targetAngle = Math.atan2(
+      pacman.y + pacman.height / 2 - originY,
+      pacman.x + pacman.width / 2 - originX
+    );
+    const count = 5;
+    for (let index = 0; index < count; index += 1) {
+      const angle = targetAngle + (index - (count - 1) / 2) * .22;
+      const projectileSpeed = 275 * speedMultiplier;
+      const hazard = obstacles[obstacles.push({
+        type: "bossObstacle",
+        bossStyle: style,
+        x: originX,
+        y: originY,
+        width: 30,
+        height: 24,
+        bossVx: Math.cos(angle) * projectileSpeed,
+        vy: Math.sin(angle) * projectileSpeed,
+        life: 3,
+        telegraph: .6,
+        passed: false,
+        angle
+      }) - 1];
+      hazard.bossHoming = true;
+      hazard.bossHomingSpeed = projectileSpeed;
+    }
   }
 
   function spawnAmmoPickup() {
@@ -2275,7 +2312,32 @@
     drawBrainProjectiles();
     drawParticles();
     drawSpeedLines();
+    drawDashTrail();
     drawPacman();
+  }
+
+  function drawDashTrail() {
+    if (!boss.active || dashTimer <= 0 || window.pacmanSettings.reducedAnimations) return;
+    const duration = DASH_DURATION + dashLevel * .05;
+    const fade = Math.min(1, dashTimer / duration);
+    const centerX = pacman.x + pacman.width / 2;
+    const centerY = pacman.y + pacman.height / 2;
+    const angle = Math.atan2(dashDirection.y, dashDirection.x);
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(angle);
+    for (let index = 0; index < 3; index += 1) {
+      ctx.globalAlpha = fade * (.5 - index * .12);
+      ctx.fillStyle = index === 0 ? "#ffffff" : "#46d7ff";
+      ctx.shadowColor = "#46d7ff";
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.ellipse(-18 - index * 14, 0, 20 - index * 3, 8 - index, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   function drawGulag() {
@@ -4066,7 +4128,7 @@
       const moveDown = pressed(13);
       const duckPressed = pressed(0);
       const jumpPressed = pressed(1);
-      pressed(7);
+      const dashPressed = pressed(7);
       const startGamePressed = justPressed(1) || justPressed(7);
       const startPressed = pressed(9);
       const axisX = axis(0);
@@ -4121,7 +4183,7 @@
         pacman.duckHeld = false;
         movementKeys.delete("down");
       }
-      if (justPressed(3)) dash();
+      if (justPressed(3) || (boss.active && dashPressed && justPressed(7))) dash();
       if (justPressed(9)) {
         if (state === "ready" || state === "gameover") startGame();
         else togglePause();

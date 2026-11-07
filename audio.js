@@ -24,7 +24,8 @@
       return [mode, audio];
     })
   );
-  const MUSIC_VOLUME = .65;
+  const MUSIC_VOLUME = .8;
+  const BOSS_MUSIC_RATE = 1.15;
   const MUSIC_FADE_DURATION = 350;
   const trackFades = new Map();
   const jumpAudio = new Audio("dragon-studio-cartoon-jump-463196 (1) - copia.mp3");
@@ -97,6 +98,7 @@
     if (!track) return;
     if (musicFailed && !retry) return;
 
+    track.playbackRate = mode.startsWith("boss") ? BOSS_MUSIC_RATE : 1;
     activeTrack = track;
     void track.play().then(() => {
       if (activeTrack !== track || currentMode !== mode) return;
