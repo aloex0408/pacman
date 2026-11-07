@@ -36,6 +36,7 @@
   const sharkShopPanel = document.getElementById("sharkShop");
   const shopCoinCountEl = document.getElementById("shopCoinCount");
   const shopMessageEl = document.getElementById("shopMessage");
+  const shopItemButtons = Array.from(sharkShopPanel.querySelectorAll("[data-shop-item]"));
   const actionPrompt = document.getElementById("actionPrompt");
   const mobileControls = document.querySelector(".mobile-controls");
   const moveLeftButton = document.getElementById("moveLeftButton");
@@ -185,6 +186,8 @@
   let shopVisit = false;
   let shopOpen = false;
   let shopX = 650;
+  let selectedShopItemIndex = 0;
+  let previousShopAxis = { x: 0, y: 0 };
   let scoreBoostLevel = 0;
   let bossSpeedLevel = 0;
   let dashLevel = 0;
@@ -322,7 +325,7 @@
         ? "TIENDA ABIERTA · ELIGE UNA MEJORA"
         : shopVisit
           ? Math.abs(pacman.x + pacman.width / 2 - shopX) <= 115
-            ? "PULSA E PARA ABRIR LA TIENDA DEL TIBURÓN"
+            ? "PULSA RT / E PARA ABRIR LA TIENDA DEL TIBURÓN"
             : "ACÉRCATE AL TIBURÓN CON A / D"
           : boss.active
             ? "COMBATE DE JEFE · SOBREVIVE ESQUIVANDO · SHIFT PARA DASH"
@@ -391,7 +394,7 @@
 
   function updateShopInterface() {
     shopCoinCountEl.textContent = String(coins);
-    for (const button of sharkShopPanel.querySelectorAll("[data-shop-item]")) {
+    for (const button of shopItemButtons) {
       const item = button.dataset.shopItem;
       const priceEl = button.querySelector(".shop-item-price");
       const descriptionEl = button.querySelector(".shop-item-description");
@@ -434,9 +437,34 @@
         ? item === "life"
           ? bonusLifePurchased ? "YA COMPRADA" : "VIDAS LLENAS"
           : "MÁXIMO"
-        : `COMPRAR · ${cost} MONEDAS`;
+        : `${cost} MONEDAS`;
       button.disabled = maxed || coins < cost;
     }
+  }
+
+  function selectShopItem(index) {
+    selectedShopItemIndex = (index + shopItemButtons.length) % shopItemButtons.length;
+    shopItemButtons.forEach((button, itemIndex) => {
+      button.classList.toggle("selected", itemIndex === selectedShopItemIndex);
+    });
+  }
+
+  function moveShopSelection(horizontal, vertical) {
+    const row = Math.floor(selectedShopItemIndex / 2);
+    const column = selectedShopItemIndex % 2;
+    const nextRow = vertical ? (row + vertical + 2) % 2 : row;
+    const nextColumn = horizontal ? (column + horizontal + 2) % 2 : column;
+    selectShopItem(nextRow * 2 + nextColumn);
+  }
+
+  function activateSelectedShopItem() {
+    const button = shopItemButtons[selectedShopItemIndex];
+    if (button.disabled) {
+      const cost = getShopItemCost(button.dataset.shopItem);
+      shopMessageEl.textContent = `Necesitas ${Math.max(0, cost - coins)} monedas más para comprarla.`;
+      return;
+    }
+    button.click();
   }
 
   function purchaseShopItem(item) {
@@ -469,6 +497,7 @@
 
   function openSharkShop() {
     shopOpen = true;
+    stage.classList.add("shop-open");
     mobileControls.classList.add("shop-open");
     window.pacmanAudio.setMode("shop");
     sharkShopPanel.hidden = false;
@@ -476,10 +505,15 @@
       ? "¡Bienvenido! Elige cómo mejorar tu partida."
       : "Aún no tienes monedas. Recoge las aletas amarillas que aparecen durante la carrera.";
     updateShopInterface();
+    const firstAvailableItem = shopItemButtons.findIndex(button => !button.disabled);
+    selectShopItem(firstAvailableItem >= 0 ? firstAvailableItem : 0);
+    if (firstAvailableItem >= 0) shopItemButtons[firstAvailableItem].focus();
+    else document.getElementById("shopContinueButton").focus();
   }
 
   function closeSharkShop() {
     shopOpen = false;
+    stage.classList.remove("shop-open");
     window.pacmanAudio.setMode("race");
     sharkShopPanel.hidden = true;
     shopVisit = false;
@@ -696,6 +730,7 @@
     frenzyKills = 0;
     shopVisit = false;
     shopOpen = false;
+    stage.classList.remove("shop-open");
     scoreBoostLevel = 0;
     bossSpeedLevel = 0;
     dashLevel = 0;
@@ -773,7 +808,7 @@
   function syncPauseControls() {
     const canPause = ["running", "falling", "gulagIntro", "gulag", "paused"].includes(state);
     gamePauseButton.hidden = !canPause;
-    gamePauseButton.textContent = state === "paused" ? "▶" : "Ⅱ";
+    gamePauseButton.textContent = state === "paused" ? "▶  REANUDAR" : "Ⅱ  PAUSAR";
     gamePauseButton.setAttribute("aria-label", state === "paused" ? "Reanudar juego" : "Pausar juego");
     pausePanel.hidden = state !== "paused";
     mobileControls.classList.toggle("paused", state === "paused");
@@ -913,6 +948,7 @@
     shopVisit = false;
     shopOpen = false;
     stage.classList.remove("shop-visit");
+    stage.classList.remove("shop-open");
     sharkShopPanel.hidden = true;
     bossPanel.hidden = false;
     bossName.textContent = boss.type.name;
@@ -965,6 +1001,7 @@
     dashButton.hidden = false;
     interactButton.hidden = true;
     stage.classList.remove("shop-visit");
+    stage.classList.remove("shop-open");
     sharkShopPanel.hidden = true;
     shopVisit = false;
     shopOpen = false;
@@ -4012,6 +4049,7 @@
     if (!activeGamepad) {
       gamepadDirection.x = 0;
       gamepadDirection.y = 0;
+      previousShopAxis = { x: 0, y: 0 };
       if (previousGamepadButtons.has(0)) {
         pacman.duckHeld = false;
         movementKeys.delete("down");
@@ -4031,13 +4069,45 @@
       pressed(7);
       const startGamePressed = justPressed(1) || justPressed(7);
       const startPressed = pressed(9);
+      const axisX = axis(0);
+      const axisY = axis(1);
 
+      if (shopOpen) {
+        gamepadDirection.x = 0;
+        gamepadDirection.y = 0;
+        if (state === "paused") {
+          if (justPressed(9)) togglePause();
+          previousGamepadButtons = pressedButtons;
+          requestAnimationFrame(pollGamepad);
+          return;
+        }
+        const shopAxisX = Math.abs(axisX) > .65 ? Math.sign(axisX) : 0;
+        const shopAxisY = Math.abs(axisY) > .65 ? Math.sign(axisY) : 0;
+        const horizontal = justPressed(14) ? -1
+          : justPressed(15) ? 1
+            : shopAxisX && shopAxisX !== previousShopAxis.x ? shopAxisX : 0;
+        const vertical = justPressed(12) ? -1
+          : justPressed(13) ? 1
+            : shopAxisY && shopAxisY !== previousShopAxis.y ? shopAxisY : 0;
+        previousShopAxis = { x: shopAxisX, y: shopAxisY };
+        if (horizontal || vertical) moveShopSelection(horizontal, vertical);
+        if (justPressed(0)) activateSelectedShopItem();
+        if (justPressed(1)) closeSharkShop();
+        if (justPressed(9)) togglePause();
+        previousGamepadButtons = pressedButtons;
+        requestAnimationFrame(pollGamepad);
+        return;
+      }
+
+      previousShopAxis = { x: 0, y: 0 };
       gamepadDirection.x = Math.max(-1, Math.min(1,
-        axis(0) + (moveRight ? 1 : 0) - (moveLeft ? 1 : 0)
+        axisX + (moveRight ? 1 : 0) - (moveLeft ? 1 : 0)
       ));
       gamepadDirection.y = Math.max(-1, Math.min(1,
-        axis(1) + (moveDown ? 1 : 0) - (moveUp ? 1 : 0)
+        axisY + (moveDown ? 1 : 0) - (moveUp ? 1 : 0)
       ));
+
+      if (shopVisit && justPressed(7)) interactWithShop();
 
       if (startGamePressed && (state === "ready" || state === "gameover")) {
         startGame();
@@ -4063,6 +4133,22 @@
   }
 
   function handleKey(event) {
+    if (shopOpen && state !== "paused") {
+      if (event.code === "ArrowLeft" || event.code === "ArrowRight" ||
+          event.code === "ArrowUp" || event.code === "ArrowDown") {
+        event.preventDefault();
+        const horizontal = event.code === "ArrowLeft" ? -1 : event.code === "ArrowRight" ? 1 : 0;
+        const vertical = event.code === "ArrowUp" ? -1 : event.code === "ArrowDown" ? 1 : 0;
+        moveShopSelection(horizontal, vertical);
+      } else if (event.code === "Enter" || event.code === "Space") {
+        event.preventDefault();
+        activateSelectedShopItem();
+      } else if (event.code === "Escape" || event.code === "KeyE") {
+        event.preventDefault();
+        closeSharkShop();
+      }
+      return;
+    }
     if (event.code === "Escape") {
       if (document.getElementById("settingsMenu").open) return;
       event.preventDefault();
@@ -4149,7 +4235,7 @@
   document.getElementById("resumeButton").addEventListener("click", togglePause);
   document.getElementById("pauseRestartButton").addEventListener("click", startGame);
   document.getElementById("shopContinueButton").addEventListener("click", closeSharkShop);
-  for (const shopItemButton of sharkShopPanel.querySelectorAll("[data-shop-item]")) {
+  for (const shopItemButton of shopItemButtons) {
     shopItemButton.addEventListener("click", () => purchaseShopItem(shopItemButton.dataset.shopItem));
   }
   jumpButton.addEventListener("pointerdown", event => {

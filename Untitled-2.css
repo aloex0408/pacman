@@ -587,16 +587,19 @@ kbd {
   z-index: 9;
   top: 50%;
   left: 50%;
-  width: min(560px, calc(100% - 28px));
+  width: min(680px, calc(100% - 28px));
   max-height: calc(100% - 24px);
-  padding: 22px;
+  padding: clamp(16px, 2.4vw, 24px);
   color: var(--white);
-  background: rgba(9, 17, 39, .97);
-  border: 2px solid var(--lime);
-  border-radius: 20px;
-  box-shadow: 8px 8px 0 rgba(16, 24, 40, .72), 0 0 30px rgba(200, 255, 61, .23);
+  background:
+    radial-gradient(ellipse at 100% 0, rgba(70, 215, 255, .16), transparent 42%),
+    linear-gradient(145deg, rgba(16, 29, 59, .99), rgba(7, 12, 31, .99));
+  border: 1px solid rgba(200, 255, 61, .72);
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .6), 0 0 36px rgba(70, 215, 255, .12);
   transform: translate(-50%, -50%);
   overflow-y: auto;
+  backdrop-filter: blur(18px);
 }
 
 .shark-shop[hidden] {
@@ -608,61 +611,110 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 16px;
 }
 
 .shop-eyebrow {
-  color: var(--lime);
+  color: var(--cyan);
   font-family: "DM Mono", monospace;
-  font-size: 9px;
-  letter-spacing: .14em;
+  font-size: 10px;
+  letter-spacing: .16em;
 }
 
 .shop-heading h2 {
   margin: 4px 0 0;
-  font-size: clamp(20px, 4vw, 27px);
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -.04em;
 }
 
 .shop-wallet {
   flex: 0 0 auto;
-  padding: 8px 12px;
+  min-width: 90px;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0 8px;
   color: var(--ink);
   background: var(--lime);
-  border-radius: 10px;
+  border-radius: 14px;
   font-family: "DM Mono", monospace;
+  font-size: 18px;
+}
+
+.shop-wallet > span:first-child {
+  grid-row: span 2;
+  color: #4a7100;
+  font-size: 20px;
+}
+
+.shop-wallet small {
+  font-size: 8px;
+  letter-spacing: .1em;
 }
 
 .shop-copy {
-  margin: 10px 0 15px;
-  color: #c3ccdc;
-  font-size: 12px;
+  margin: 8px 0 14px;
+  color: #b6c4da;
+  font-size: 13px;
 }
 
 .shop-items {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .shop-item {
-  min-height: 112px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 12px;
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 14px;
   color: var(--white);
-  background: rgba(255, 255, 255, .07);
-  border: 1px solid rgba(255, 255, 255, .18);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, .045);
+  border: 1px solid rgba(186, 208, 235, .19);
+  border-radius: 16px;
   text-align: left;
   cursor: pointer;
-  transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.shop-item-icon {
+  width: 48px;
+  height: 48px;
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  color: var(--lime);
+  background: rgba(200, 255, 61, .1);
+  border: 1px solid rgba(200, 255, 61, .24);
+  border-radius: 14px;
+  font-family: "DM Mono", monospace;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.shop-item-info {
+  min-width: 0;
+  align-self: end;
+}
+
+.shop-item.selected {
+  border-color: var(--lime);
+  box-shadow: 0 0 0 2px rgba(200, 255, 61, .2), 0 0 22px rgba(200, 255, 61, .13);
+}
+
+.shop-item:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
 }
 
 .shop-item:not(:disabled):hover {
-  transform: translateY(-3px);
-  background: rgba(124, 92, 255, .24);
+  transform: translateY(-2px);
+  background: rgba(70, 215, 255, .09);
   border-color: var(--cyan);
 }
 
@@ -674,41 +726,59 @@ kbd {
 .shop-item strong {
   color: var(--lime);
   font-family: "DM Mono", monospace;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .shop-item-description {
-  color: #d2d9e5;
-  font-size: 10px;
-  line-height: 1.35;
+  display: block;
+  margin-top: 4px;
+  color: #b6c4da;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .shop-item-price {
-  margin-top: auto;
+  grid-column: 2;
+  align-self: start;
   color: var(--cyan);
   font-family: "DM Mono", monospace;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.shop-controls-hint {
+  margin: 12px 0 0;
+  color: #91a2bc;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  letter-spacing: .08em;
+  text-align: center;
+}
+
+.shop-controls-hint kbd {
+  margin: 0 3px 0 8px;
 }
 
 .shop-footer {
-  margin-top: 14px;
+  margin-top: 8px;
 }
 
 #shopMessage {
-  color: #c3ccdc;
-  font-size: 10px;
+  color: #c6d2e4;
+  font-size: 11px;
 }
 
 #shopContinueButton {
   flex: 0 0 auto;
-  padding: 10px 13px;
+  padding: 11px 15px;
   color: var(--ink);
   background: var(--lime);
   border: 0;
-  border-radius: 9px;
+  border-radius: 11px;
   font-family: "DM Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -884,15 +954,17 @@ kbd {
   z-index: 10;
   top: 16px;
   left: 16px;
-  min-width: 42px;
+  min-width: 104px;
   min-height: 42px;
-  padding: 8px 12px;
+  padding: 8px 11px;
   color: var(--white);
   background: rgba(16, 24, 40, .9);
   border: 2px solid var(--white);
   border-radius: 10px;
-  font-size: 16px;
-  font-weight: 900;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -1284,28 +1356,37 @@ footer span {
   }
 
   .shop-items {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
   }
 
   .shop-item {
-    min-height: 60px;
-    gap: 4px;
-    padding: 8px;
+    min-height: 58px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 4px 6px;
+    padding: 6px;
+  }
+
+  .shop-item-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 10px;
   }
 
   .shop-item strong,
   .shop-item-price {
-    font-size: 9px;
+    font-size: 7px;
   }
 
   .shop-item-description {
-    font-size: 9px;
-    line-height: 1.15;
+    margin-top: 2px;
+    font-size: 7px;
+    line-height: 1.2;
   }
 
   .shop-copy {
-    margin: 4px 0 6px;
+    margin: 4px 0 8px;
     font-size: 9px;
   }
 
@@ -1320,12 +1401,31 @@ footer span {
     font-size: 17px;
   }
 
+  .shop-eyebrow {
+    font-size: 7px;
+  }
+
+  .shop-wallet {
+    min-width: 62px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .shop-wallet > span:first-child {
+    font-size: 15px;
+  }
+
+  .shop-controls-hint {
+    margin-top: 7px;
+    font-size: 6px;
+  }
+
   .shop-footer {
     gap: 6px;
   }
 
   #shopMessage {
-    max-width: 42%;
+    max-width: 48%;
     font-size: 8px;
     line-height: 1.2;
   }
@@ -1333,6 +1433,36 @@ footer span {
   #shopContinueButton {
     padding: 7px;
     font-size: 8px;
+  }
+
+  .game-pause-button {
+    top: 8px;
+    left: 8px;
+    min-width: 82px;
+    min-height: 34px;
+    padding: 6px 8px;
+    font-size: 8px;
+  }
+
+  .game-stage.shop-open .game-pause-button {
+    top: 50%;
+    right: 0;
+    left: auto;
+    width: 20px;
+    min-width: 20px;
+    min-height: 38px;
+    padding: 0;
+    font-size: 0;
+    transform: translateY(-50%);
+  }
+
+  .game-stage.shop-open .game-pause-button::after {
+    content: "Ⅱ";
+    font-size: 12px;
+  }
+
+  .game-stage.shop-open .game-pause-button[aria-label="Reanudar juego"]::after {
+    content: "▶";
   }
 
   footer {
